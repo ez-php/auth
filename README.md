@@ -1,18 +1,18 @@
-# ezphp/auth
+# ez-php/auth
 
-Authentication module for the [ez-php framework](https://github.com/ezphp/framework) — session and token-based auth with a flexible user provider interface.
+Authentication module for the [ez-php framework](https://github.com/ez-php/framework) — session and token-based auth with a flexible user provider interface.
 
-[![CI](https://github.com/ezphp/auth/actions/workflows/ci.yml/badge.svg)](https://github.com/ezphp/auth/actions/workflows/ci.yml)
+[![CI](https://github.com/ez-php/auth/actions/workflows/ci.yml/badge.svg)](https://github.com/ez-php/auth/actions/workflows/ci.yml)
 
 ## Requirements
 
 - PHP 8.5+
-- ezphp/framework ^1.0
+- ez-php/framework ^1.0
 
 ## Installation
 
 ```bash
-composer require ezphp/auth
+composer require ez-php/auth
 ```
 
 ## Setup

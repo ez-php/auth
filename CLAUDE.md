@@ -86,7 +86,7 @@ When creating a new module or `CLAUDE.md` anywhere in this repository:
 
 **CLAUDE.md structure:**
 - Start with the full content of `CODING_GUIDELINES.md`, verbatim
-- Then add `---` followed by `# Package: ezphp/<name>` (or `# Directory: <name>`)
+- Then add `---` followed by `# Package: ez-php/<name>` (or `# Directory: <name>`)
 - Module-specific section must cover:
   - Source structure (file tree with one-line descriptions per file)
   - Key classes and their responsibilities
@@ -100,7 +100,7 @@ When creating a new module or `CLAUDE.md` anywhere in this repository:
 **Docker setup:** copy `docker-compose.yml`, `docker/`, `.env.example` and `start.sh` from the repository root and adapt them for the module (service names, ports, required services). Use a unique `DB_PORT` in `.env.example` that is not used by any other package — increment by one per package starting with `3306` (root).
 ---
 
-# Package: ezphp/auth
+# Package: ez-php/auth
 
 Session and Bearer-token authentication for ez-php applications.
 
@@ -210,7 +210,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 
 - **Static façade with a managed singleton** — `Auth` uses a static instance so controllers can call `Auth::user()` without injecting the object. The singleton is set explicitly by `AuthServiceProvider`, not through `static::` magic, so it can be replaced in tests via `Auth::setInstance()`.
 - **No session management** — This module reads from and writes to an already-active PHP session (`session_status() === PHP_SESSION_ACTIVE`) but never calls `session_start()` or `session_destroy()`. Starting/destroying sessions is the application's responsibility (e.g. via a session middleware).
-- **No password hashing** — Credential verification (passwords, OAuth, etc.) belongs in the application or a future `ezphp/credentials` module. This module only handles identity after credentials have been verified.
+- **No password hashing** — Credential verification (passwords, OAuth, etc.) belongs in the application or a future `ez-php/credentials` module. This module only handles identity after credentials have been verified.
 - **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
 - **`AuthMiddleware` is `final`** — Extend behaviour by composing a new middleware that wraps or replaces it, not by subclassing.
 - **No JWT or OAuth support** — Out of scope. The token is treated as an opaque string; interpretation is delegated to `UserProviderInterface::findByToken()`.
@@ -232,10 +232,10 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 | Concern | Where it belongs |
 |---|---|
 | Session lifecycle (start/destroy) | Application session middleware |
-| Password hashing and verification | Application layer or future `ezphp/credentials` |
+| Password hashing and verification | Application layer or future `ez-php/credentials` |
 | JWT creation and validation | Application layer or a dedicated JWT package |
 | OAuth / SSO flows | Application layer |
 | User model / database schema | Application code implementing `UserInterface` |
-| Rate limiting login attempts | `ezphp/rate-limiter` |
-| HTTP Request / Response | `ezphp/http` |
-| Middleware infrastructure | `ezphp/framework` (`MiddlewareInterface`) |
+| Rate limiting login attempts | `ez-php/rate-limiter` |
+| HTTP Request / Response | `ez-php/http` |
+| Middleware infrastructure | `ez-php/framework` (`MiddlewareInterface`) |

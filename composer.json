@@ -9,11 +9,11 @@
       "email": "andreas.uretschnig@gmail.com"
     }
   ],
-  "keywords": ["auth", "authentication", "php", "framework", "ezphp"],
-  "homepage": "https://github.com/ezphp/auth",
+  "keywords": ["auth", "authentication", "php", "framework", "ez-php"],
+  "homepage": "https://github.com/ez-php/auth",
   "support": {
-    "issues": "https://github.com/ezphp/auth/issues",
-    "source": "https://github.com/ezphp/auth"
+    "issues": "https://github.com/ez-php/auth/issues",
+    "source": "https://github.com/ez-php/auth"
   },
   "require": {
     "php": "^8.5",
