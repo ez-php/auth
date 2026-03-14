@@ -9,7 +9,7 @@ services:
         WWWGROUP: 1000
     container_name: ez-php-auth-app
     volumes:
-      - ../..:/var/www/html
+      - .:/var/www/html
     working_dir: /var/www/html
     env_file:
       - .env
