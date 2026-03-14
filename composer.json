@@ -1,0 +1,51 @@
+{
+  "name": "ezphp/auth",
+  "description": "Authentication module for the ez-php framework — session and token-based auth with a flexible user provider interface",
+  "type": "library",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "Andreas Uretschnig",
+      "email": "andreas.uretschnig@gmail.com"
+    }
+  ],
+  "keywords": ["auth", "authentication", "php", "framework", "ezphp"],
+  "homepage": "https://github.com/ezphp/auth",
+  "support": {
+    "issues": "https://github.com/ezphp/auth/issues",
+    "source": "https://github.com/ezphp/auth"
+  },
+  "repositories": [
+    {"type": "path", "url": "../../framework"},
+    {"type": "path", "url": "../dotenv"},
+    {"type": "path", "url": "../http"},
+    {"type": "path", "url": "../console"}
+  ],
+  "require": {
+    "php": "^8.5",
+    "ezphp/framework": "^1.0"
+  },
+  "require-dev": {
+    "phpunit/phpunit": "^13.0",
+    "phpstan/phpstan": "^2.1",
+    "friendsofphp/php-cs-fixer": "^3.94",
+    "phpstan/phpstan-strict-rules": "^2.0",
+    "phpstan/phpstan-deprecation-rules": "^2.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "EzPhp\\Auth\\": "src/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "cs": "php-cs-fixer fix",
+    "analyse": "phpstan analyse",
+    "test": "phpunit",
+    "full": "composer analyse && composer cs && composer test"
+  }
+}
