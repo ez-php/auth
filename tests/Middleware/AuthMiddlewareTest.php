@@ -21,8 +21,6 @@ use Tests\TestCase;
  */
 #[CoversClass(AuthMiddleware::class)]
 #[UsesClass(Auth::class)]
-#[UsesClass(Request::class)]
-#[UsesClass(Response::class)]
 final class AuthMiddlewareTest extends TestCase
 {
     /**
