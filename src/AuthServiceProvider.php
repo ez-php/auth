@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace EzPhp\Auth;
 
-use EzPhp\Application\Application;
-use EzPhp\ServiceProvider\ServiceProvider;
+use EzPhp\Contracts\ContainerInterface;
+use EzPhp\Contracts\ServiceProvider;
 use Throwable;
 
 /**
@@ -27,7 +27,7 @@ final class AuthServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->bind(Auth::class, function (Application $app): Auth {
+        $this->app->bind(Auth::class, function (ContainerInterface $app): Auth {
             $provider = null;
 
             try {

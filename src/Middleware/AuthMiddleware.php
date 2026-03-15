@@ -6,9 +6,9 @@ namespace EzPhp\Auth\Middleware;
 
 use EzPhp\Auth\Auth;
 use EzPhp\Auth\UserProviderInterface;
+use EzPhp\Contracts\MiddlewareInterface;
 use EzPhp\Http\Request;
 use EzPhp\Http\Response;
-use EzPhp\Middleware\MiddlewareInterface;
 
 /**
  * Class AuthMiddleware
