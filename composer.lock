@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2c0fd4d1010bd426642d4f7522e85765",
+    "content-hash": "1deac214a4df50d5d4d30f66b9a86771",
     "packages": [
         {
             "name": "ez-php/console",
@@ -565,6 +565,38 @@
                 "source": "https://github.com/igorw/evenement/tree/v3.0.2"
             },
             "time": "2023-08-08T05:53:35+00:00"
+        },
+        {
+            "name": "ez-php/docker",
+            "version": "0.1.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ez-php/docker.git",
+                "reference": "b82175c00eab8445e7fba702c876c80b8c77062b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ez-php/docker/zipball/b82175c00eab8445e7fba702c876c80b8c77062b",
+                "reference": "b82175c00eab8445e7fba702c876c80b8c77062b",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.5"
+            },
+            "bin": [
+                "bin/docker-init"
+            ],
+            "type": "library",
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "description": "Docker base image source and scaffolding stubs for ez-php modules and projects",
+            "support": {
+                "issues": "https://github.com/ez-php/docker/issues",
+                "source": "https://github.com/ez-php/docker/tree/v0.1.2"
+            },
+            "time": "2026-03-15T16:27:29+00:00"
         },
         {
             "name": "fidry/cpu-core-counter",
@@ -2600,16 +2632,16 @@
         },
         {
             "name": "sebastian/environment",
-            "version": "9.0.0",
+            "version": "9.0.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/sebastianbergmann/environment.git",
-                "reference": "bb64d08145b021b67d5f253308a498b73ab0461e"
+                "reference": "e26e9a944bd9d27b3a38a82fc2093d440951bfbe"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/sebastianbergmann/environment/zipball/bb64d08145b021b67d5f253308a498b73ab0461e",
-                "reference": "bb64d08145b021b67d5f253308a498b73ab0461e",
+                "url": "https://api.github.com/repos/sebastianbergmann/environment/zipball/e26e9a944bd9d27b3a38a82fc2093d440951bfbe",
+                "reference": "e26e9a944bd9d27b3a38a82fc2093d440951bfbe",
                 "shasum": ""
             },
             "require": {
@@ -2652,7 +2684,7 @@
             "support": {
                 "issues": "https://github.com/sebastianbergmann/environment/issues",
                 "security": "https://github.com/sebastianbergmann/environment/security/policy",
-                "source": "https://github.com/sebastianbergmann/environment/tree/9.0.0"
+                "source": "https://github.com/sebastianbergmann/environment/tree/9.0.1"
             },
             "funding": [
                 {
@@ -2672,7 +2704,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-02-06T04:43:29+00:00"
+            "time": "2026-03-15T07:13:02+00:00"
         },
         {
             "name": "sebastian/exporter",
