@@ -7,7 +7,7 @@ Applies to the entire ez-php project — framework core, all modules, and the ap
 ## Environment
 
 - PHP **8.5**, Composer for dependency management
-- All commands run **inside Docker** — never directly on the host
+- All project based commands run **inside Docker** — never directly on the host
 
 ```
 docker compose exec app <command>
@@ -82,23 +82,64 @@ composer test      # PHPUnit only
 
 ## New Modules & CLAUDE.md Files
 
-When creating a new module or `CLAUDE.md` anywhere in this repository:
+### 1 — Required files
 
-**CLAUDE.md structure:**
-- Start with the full content of `CODING_GUIDELINES.md`, verbatim
-- Then add `---` followed by `# Package: ez-php/<name>` (or `# Directory: <name>`)
-- Module-specific section must cover:
-  - Source structure (file tree with one-line descriptions per file)
-  - Key classes and their responsibilities
-  - Design decisions and constraints
-  - Testing approach and any infrastructure requirements (e.g. needs MySQL, Redis)
-  - What does **not** belong in this module
+Every module under `modules/<name>/` must have:
 
-**Each module needs its own:**
-`composer.json` · `phpstan.neon` · `phpunit.xml` · `.php-cs-fixer.php` · `.gitignore` · `.github/workflows/ci.yml` · `README.md` · `tests/TestCase.php`
+| File | Purpose |
+|---|---|
+| `composer.json` | package definition, deps, autoload |
+| `phpstan.neon` | static analysis config, level 9 |
+| `phpunit.xml` | test suite config |
+| `.php-cs-fixer.php` | code style config |
+| `.gitignore` | ignore `vendor/`, `.env`, cache |
+| `.github/workflows/ci.yml` | standalone CI pipeline |
+| `README.md` | public documentation |
+| `tests/TestCase.php` | base test case for the module |
+| `start.sh` | convenience script: copy `.env`, bring up Docker, wait for services, exec shell |
+| `CLAUDE.md` | see section 2 below |
 
-**Docker setup:**   
-run `vendor/bin/docker-init` from the new module root to scaffold Docker files (requires `"ez-php/docker": "0.*"` in `require-dev`). The script reads the package name from `composer.json`, copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the project, replacing `{{MODULE_NAME}}` placeholders — skips files that already exist. After scaffolding, adapt `docker-compose.yml` and `.env.example` for the module's required services (MySQL, Redis, etc.) and set a unique `DB_PORT` — increment by one per package starting with `3306` (root).
+### 2 — CLAUDE.md structure
+
+Every module `CLAUDE.md` must follow this exact structure:
+
+1. **Full content of `CODING_GUIDELINES.md`, verbatim** — copy it as-is, do not summarize or shorten
+2. A `---` separator
+3. `# Package: ez-php/<name>` (or `# Directory: <name>` for non-package directories)
+4. Module-specific section covering:
+   - Source structure — file tree with one-line description per file
+   - Key classes and their responsibilities
+   - Design decisions and constraints
+   - Testing approach and infrastructure requirements (MySQL, Redis, etc.)
+   - What does **not** belong in this module
+
+### 3 — Docker scaffold
+
+Run from the new module root (requires `"ez-php/docker": "0.*"` in `require-dev`):
+
+```
+vendor/bin/docker-init
+```
+
+This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders. Existing files are never overwritten.
+
+After scaffolding:
+
+1. Adapt `docker-compose.yml` — add or remove services (MySQL, Redis) as needed
+2. Adapt `.env.example` — fill in connection defaults matching the services above
+3. Assign a unique host port for each exposed service (see table below)
+
+**Allocated host ports:**
+
+| Package | `DB_HOST_PORT` (MySQL) | `REDIS_PORT` |
+|---|---|---|
+| root (`ez-php-project`) | 3306 | 6379 |
+| `ez-php/framework` | 3307 | — |
+| `ez-php/orm` | 3309 | — |
+| `ez-php/cache` | — | 6380 |
+| **next free** | **3310** | **6381** |
+
+Only set a port for services the module actually uses. Modules without external services need no port config.
 
 ---
 
@@ -241,3 +282,4 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 | Rate limiting login attempts | `ez-php/rate-limiter` |
 | HTTP Request / Response | `ez-php/http` |
 | Middleware infrastructure | `ez-php/framework` (`MiddlewareInterface`) |
+
