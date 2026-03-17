@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Auth;
 
+use EzPhp\Application\Application;
 use EzPhp\Auth\Auth;
 use EzPhp\Auth\AuthServiceProvider;
 use EzPhp\Auth\UserInterface;
 use EzPhp\Auth\UserProviderInterface;
-use EzPhp\Contracts\ContainerInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
-use Tests\TestCase;
+use Tests\ApplicationTestCase;
 
 /**
  * Class AuthServiceProviderTest
@@ -20,8 +20,16 @@ use Tests\TestCase;
  */
 #[CoversClass(AuthServiceProvider::class)]
 #[UsesClass(Auth::class)]
-final class AuthServiceProviderTest extends TestCase
+final class AuthServiceProviderTest extends ApplicationTestCase
 {
+    /**
+     * @return void
+     */
+    protected function configureApplication(Application $app): void
+    {
+        $app->register(AuthServiceProvider::class);
+    }
+
     /**
      * @return void
      */
@@ -32,66 +40,11 @@ final class AuthServiceProviderTest extends TestCase
     }
 
     /**
-     * Build a minimal container stub and register the provider against it.
-     */
-    private function makeBootedContainer(): ContainerInterface
-    {
-        $container = new class () implements ContainerInterface {
-            /** @var array<string, callable> */
-            private array $bindings = [];
-
-            /** @var array<string, object> */
-            private array $instances = [];
-
-            public function bind(string $abstract, string|callable|null $factory = null): void
-            {
-                if (is_callable($factory)) {
-                    $this->bindings[$abstract] = $factory;
-                    unset($this->instances[$abstract]);
-                }
-            }
-
-            public function instance(string $abstract, object $instance): void
-            {
-                $this->instances[$abstract] = $instance;
-            }
-
-            /**
-             * @template T of object
-             * @param class-string<T> $abstract
-             * @return T
-             */
-            public function make(string $abstract): mixed
-            {
-                if (isset($this->instances[$abstract])) {
-                    /** @var T */
-                    return $this->instances[$abstract];
-                }
-
-                if (isset($this->bindings[$abstract])) {
-                    /** @var T */
-                    return $this->instances[$abstract] = ($this->bindings[$abstract])($this);
-                }
-
-                throw new \RuntimeException("No binding registered for {$abstract}.");
-            }
-        };
-
-        $provider = new AuthServiceProvider($container);
-        $provider->register();
-        $provider->boot();
-
-        return $container;
-    }
-
-    /**
      * @return void
      */
     public function test_auth_is_bound_in_container(): void
     {
-        $container = $this->makeBootedContainer();
-
-        $this->assertInstanceOf(Auth::class, $container->make(Auth::class));
+        $this->assertInstanceOf(Auth::class, $this->app()->make(Auth::class));
     }
 
     /**
@@ -99,7 +52,7 @@ final class AuthServiceProviderTest extends TestCase
      */
     public function test_auth_check_returns_false_by_default(): void
     {
-        $this->makeBootedContainer();
+        $this->app()->make(Auth::class);
 
         $this->assertFalse(Auth::check());
     }
@@ -109,7 +62,7 @@ final class AuthServiceProviderTest extends TestCase
      */
     public function test_auth_static_methods_work_after_bootstrap(): void
     {
-        $this->makeBootedContainer();
+        $this->app()->make(Auth::class);
 
         $user = new class () implements UserInterface {
             /**
@@ -133,6 +86,10 @@ final class AuthServiceProviderTest extends TestCase
     }
 
     /**
+     * Binds UserProviderInterface before the first make(Auth::class) call so
+     * the lazy factory in AuthServiceProvider::register() resolves it and
+     * injects it into the Auth instance.
+     *
      * @return void
      */
     public function test_auth_uses_user_provider_when_bound(): void
@@ -146,6 +103,7 @@ final class AuthServiceProviderTest extends TestCase
                 return 42;
             }
         };
+
         $provider = new class ($user) implements UserProviderInterface {
             /**
              * @param UserInterface $u
@@ -175,11 +133,10 @@ final class AuthServiceProviderTest extends TestCase
             }
         };
 
-        $container = $this->makeBootedContainer();
-
-        // Bind UserProviderInterface after register/boot, then resolve Auth.
-        $container->bind(UserProviderInterface::class, static fn (): UserProviderInterface => $provider);
-        $container->make(Auth::class);
+        // Bind before the first make(Auth::class); the binding factory resolves
+        // UserProviderInterface lazily, so this ordering works even after bootstrap.
+        $this->app()->bind(UserProviderInterface::class, static fn (): UserProviderInterface => $provider);
+        $this->app()->make(Auth::class);
 
         Auth::login($user);
         $this->assertSame($user, Auth::user());
