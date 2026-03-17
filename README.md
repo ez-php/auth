@@ -7,7 +7,7 @@ Authentication module for the [ez-php framework](https://github.com/ez-php/frame
 ## Requirements
 
 - PHP 8.5+
-- ez-php/framework ^1.0
+- ez-php/framework 0.*
 
 ## Installation
 
