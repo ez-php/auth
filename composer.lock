@@ -8,16 +8,16 @@
     "packages": [
         {
             "name": "ez-php/contracts",
-            "version": "0.4.1",
+            "version": "0.4.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ez-php/contracts.git",
-                "reference": "743ea7754239be2f19d1dab626f8ab0ba60fe1ae"
+                "reference": "993bb29452c0c7eea3b805ee9a8d862ca8b3c00c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ez-php/contracts/zipball/743ea7754239be2f19d1dab626f8ab0ba60fe1ae",
-                "reference": "743ea7754239be2f19d1dab626f8ab0ba60fe1ae",
+                "url": "https://api.github.com/repos/ez-php/contracts/zipball/993bb29452c0c7eea3b805ee9a8d862ca8b3c00c",
+                "reference": "993bb29452c0c7eea3b805ee9a8d862ca8b3c00c",
                 "shasum": ""
             },
             "require": {
@@ -62,7 +62,7 @@
                 "issues": "https://github.com/ez-php/contracts/issues",
                 "source": "https://github.com/ez-php/contracts"
             },
-            "time": "2026-03-17T21:03:05+00:00"
+            "time": "2026-03-17T22:46:43+00:00"
         },
         {
             "name": "ez-php/http",
@@ -726,16 +726,16 @@
         },
         {
             "name": "ez-php/orm",
-            "version": "0.4.0",
+            "version": "0.4.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ez-php/orm.git",
-                "reference": "5feacaf1464a339d26cdb72a10c927181491bd28"
+                "reference": "b4815607864086facdcfc645e8fd35eee9121b38"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ez-php/orm/zipball/5feacaf1464a339d26cdb72a10c927181491bd28",
-                "reference": "5feacaf1464a339d26cdb72a10c927181491bd28",
+                "url": "https://api.github.com/repos/ez-php/orm/zipball/b4815607864086facdcfc645e8fd35eee9121b38",
+                "reference": "b4815607864086facdcfc645e8fd35eee9121b38",
                 "shasum": ""
             },
             "require": {
@@ -745,6 +745,7 @@
             },
             "require-dev": {
                 "ez-php/docker": "0.*",
+                "ez-php/testing": "0.*",
                 "friendsofphp/php-cs-fixer": "^3.94",
                 "phpstan/phpstan": "^2.1",
                 "phpstan/phpstan-deprecation-rules": "^2.0",
@@ -783,7 +784,7 @@
                 "issues": "https://github.com/ez-php/orm/issues",
                 "source": "https://github.com/ez-php/orm"
             },
-            "time": "2026-03-15T23:52:47+00:00"
+            "time": "2026-03-17T21:51:42+00:00"
         },
         {
             "name": "ez-php/testing",
