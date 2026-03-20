@@ -173,6 +173,49 @@ final class AuthTest extends TestCase
         $this->assertFalse(Auth::check());
     }
 
+    // ─── Password hashing ─────────────────────────────────────────────────────
+
+    /**
+     * @return void
+     */
+    public function test_hash_password_returns_bcrypt_hash(): void
+    {
+        $hash = Auth::hashPassword('secret');
+
+        $this->assertStringStartsWith('$2y$', $hash);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_verify_password_returns_true_for_correct_password(): void
+    {
+        $hash = Auth::hashPassword('secret');
+
+        $this->assertTrue(Auth::verifyPassword('secret', $hash));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_verify_password_returns_false_for_wrong_password(): void
+    {
+        $hash = Auth::hashPassword('secret');
+
+        $this->assertFalse(Auth::verifyPassword('wrong', $hash));
+    }
+
+    /**
+     * @return void
+     */
+    public function test_hash_password_produces_unique_hashes(): void
+    {
+        $hash1 = Auth::hashPassword('secret');
+        $hash2 = Auth::hashPassword('secret');
+
+        $this->assertNotSame($hash1, $hash2);
+    }
+
     // ─── Session restoration ──────────────────────────────────────────────────
 
     /**

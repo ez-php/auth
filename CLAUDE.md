@@ -183,6 +183,8 @@ Static façade backed by a managed singleton instance. Provides the public API c
 | `Auth::id()` | Returns `getAuthId()` of the current user or `null` |
 | `Auth::login($user)` | Sets the current user; persists `auth_id` to `$_SESSION` when a session is active |
 | `Auth::logout()` | Clears the current user; removes `auth_id` from `$_SESSION` when a session is active |
+| `Auth::hashPassword($plain)` | Hashes a plain-text password via `password_hash()` with `PASSWORD_DEFAULT` (bcrypt) |
+| `Auth::verifyPassword($plain, $hash)` | Verifies a plain-text password against a stored hash via `password_verify()` |
 
 **Instance lifecycle:**
 - `Auth::setInstance(Auth)` — replaces the singleton (used by `AuthServiceProvider` and tests)
@@ -253,7 +255,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 
 - **Static façade with a managed singleton** — `Auth` uses a static instance so controllers can call `Auth::user()` without injecting the object. The singleton is set explicitly by `AuthServiceProvider`, not through `static::` magic, so it can be replaced in tests via `Auth::setInstance()`.
 - **No session management** — This module reads from and writes to an already-active PHP session (`session_status() === PHP_SESSION_ACTIVE`) but never calls `session_start()` or `session_destroy()`. Starting/destroying sessions is the application's responsibility (e.g. via a session middleware).
-- **No password hashing** — Credential verification (passwords, OAuth, etc.) belongs in the application or a future `ez-php/credentials` module. This module only handles identity after credentials have been verified.
+- **Password hashing as thin wrappers** — `Auth::hashPassword()` and `Auth::verifyPassword()` are pure delegates to PHP's `password_hash()` / `password_verify()`. They live here so callers never import raw PHP functions in application code, but carry no state and no algorithm logic of their own.
 - **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
 - **`AuthMiddleware` is `final`** — Extend behaviour by composing a new middleware that wraps or replaces it, not by subclassing.
 - **No JWT or OAuth support** — Out of scope. The token is treated as an opaque string; interpretation is delegated to `UserProviderInterface::findByToken()`.
@@ -275,7 +277,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 | Concern | Where it belongs |
 |---|---|
 | Session lifecycle (start/destroy) | Application session middleware |
-| Password hashing and verification | Application layer or future `ez-php/credentials` |
+| OAuth / credential flows beyond simple hashing | Application layer or future `ez-php/credentials` |
 | JWT creation and validation | Application layer or a dedicated JWT package |
 | OAuth / SSO flows | Application layer |
 | User model / database schema | Application code implementing `UserInterface` |

@@ -16,11 +16,13 @@ namespace EzPhp\Auth;
  *     on subsequent requests Auth::user() restores the user via the provider.
  *
  * Usage:
- *   Auth::check()          // bool
- *   Auth::user()           // ?UserInterface
- *   Auth::id()             // int|string|null
- *   Auth::login($user)     // void
- *   Auth::logout()         // void
+ *   Auth::check()                        // bool
+ *   Auth::user()                         // ?UserInterface
+ *   Auth::id()                           // int|string|null
+ *   Auth::login($user)                   // void
+ *   Auth::logout()                       // void
+ *   Auth::hashPassword($plain)           // string
+ *   Auth::verifyPassword($plain, $hash)  // bool
  *
  * @package EzPhp\Auth
  */
@@ -114,6 +116,22 @@ final class Auth
     public static function logout(): void
     {
         self::getInstance()->logoutUser();
+    }
+
+    /**
+     * Hash a plain-text password using PHP's default hashing algorithm (bcrypt).
+     */
+    public static function hashPassword(string $plain): string
+    {
+        return password_hash($plain, PASSWORD_DEFAULT);
+    }
+
+    /**
+     * Verify a plain-text password against a stored hash.
+     */
+    public static function verifyPassword(string $plain, string $hash): bool
+    {
+        return password_verify($plain, $hash);
     }
 
     // ─── Instance logic ───────────────────────────────────────────────────────
