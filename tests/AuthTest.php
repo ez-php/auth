@@ -10,7 +10,6 @@ use EzPhp\Auth\UserInterface;
 use EzPhp\Auth\UserProviderInterface;
 use EzPhp\RateLimiter\RateLimiterInterface;
 use PHPUnit\Framework\Attributes\CoversClass;
-use PHPUnit\Framework\Attributes\UsesClass;
 use Tests\TestCase;
 
 /**
