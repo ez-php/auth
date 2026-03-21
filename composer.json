@@ -19,7 +19,8 @@
   "require": {
     "php": "^8.5",
     "ez-php/contracts": "0.*",
-    "ez-php/http": "0.*"
+    "ez-php/http": "0.*",
+    "ez-php/rate-limiter": "0.*"
   },
   "require-dev": {
     "ez-php/docker": "0.*",

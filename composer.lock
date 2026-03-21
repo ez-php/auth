@@ -4,8 +4,66 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ddbf98715653340c4146c02ff3c2c77c",
+    "content-hash": "73ae56ba93053422dc1d7162a8fde534",
     "packages": [
+        {
+            "name": "ez-php/cache",
+            "version": "0.6.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ez-php/cache.git",
+                "reference": "53cd51d6d2421107d4dd1be673f07d269446a706"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ez-php/cache/zipball/53cd51d6d2421107d4dd1be673f07d269446a706",
+                "reference": "53cd51d6d2421107d4dd1be673f07d269446a706",
+                "shasum": ""
+            },
+            "require": {
+                "ez-php/contracts": "0.*",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "ez-php/docker": "0.*",
+                "ez-php/testing": "0.*",
+                "friendsofphp/php-cs-fixer": "^3.94",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "EzPhp\\Cache\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Uretschnig",
+                    "email": "andreas.uretschnig@gmail.com"
+                }
+            ],
+            "description": "Cache module for the ez-php framework — array, file, and Redis drivers with a unified interface",
+            "homepage": "https://github.com/ez-php/cache",
+            "keywords": [
+                "cache",
+                "ez-php",
+                "framework",
+                "php",
+                "redis"
+            ],
+            "support": {
+                "issues": "https://github.com/ez-php/cache/issues",
+                "source": "https://github.com/ez-php/cache"
+            },
+            "time": "2026-03-21T22:36:56+00:00"
+        },
         {
             "name": "ez-php/contracts",
             "version": "0.6.1",
@@ -119,6 +177,67 @@
                 "source": "https://github.com/ez-php/http"
             },
             "time": "2026-03-21T18:39:16+00:00"
+        },
+        {
+            "name": "ez-php/rate-limiter",
+            "version": "0.6.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ez-php/rate-limiter.git",
+                "reference": "818e82eaaf15018d8b7ed4ed4b4ed074e4fcc4b3"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ez-php/rate-limiter/zipball/818e82eaaf15018d8b7ed4ed4b4ed074e4fcc4b3",
+                "reference": "818e82eaaf15018d8b7ed4ed4b4ed074e4fcc4b3",
+                "shasum": ""
+            },
+            "require": {
+                "ez-php/cache": "0.*",
+                "ez-php/contracts": "0.*",
+                "ez-php/http": "0.*",
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "ez-php/docker": "0.*",
+                "ez-php/testing": "0.*",
+                "friendsofphp/php-cs-fixer": "^3.94",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "EzPhp\\RateLimiter\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Uretschnig",
+                    "email": "andreas.uretschnig@gmail.com"
+                }
+            ],
+            "description": "Rate limiter module for the ez-php framework — array, Redis, and cache-backed drivers with ThrottleMiddleware",
+            "homepage": "https://github.com/ez-php/rate-limiter",
+            "keywords": [
+                "ez-php",
+                "framework",
+                "php",
+                "rate-limiter",
+                "redis",
+                "throttle"
+            ],
+            "support": {
+                "issues": "https://github.com/ez-php/rate-limiter/issues",
+                "source": "https://github.com/ez-php/rate-limiter"
+            },
+            "time": "2026-03-21T15:34:02+00:00"
         }
     ],
     "packages-dev": [
