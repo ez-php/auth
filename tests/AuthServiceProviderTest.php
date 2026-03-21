@@ -23,6 +23,8 @@ use Tests\ApplicationTestCase;
 final class AuthServiceProviderTest extends ApplicationTestCase
 {
     /**
+     * @param Application $app
+     *
      * @return void
      */
     protected function configureApplication(Application $app): void
@@ -41,6 +43,7 @@ final class AuthServiceProviderTest extends ApplicationTestCase
 
     /**
      * @return void
+     * @throws \ReflectionException
      */
     public function test_auth_is_bound_in_container(): void
     {
@@ -49,6 +52,7 @@ final class AuthServiceProviderTest extends ApplicationTestCase
 
     /**
      * @return void
+     * @throws \ReflectionException
      */
     public function test_auth_check_returns_false_by_default(): void
     {
@@ -59,6 +63,7 @@ final class AuthServiceProviderTest extends ApplicationTestCase
 
     /**
      * @return void
+     * @throws \ReflectionException
      */
     public function test_auth_static_methods_work_after_bootstrap(): void
     {
@@ -91,6 +96,7 @@ final class AuthServiceProviderTest extends ApplicationTestCase
      * injects it into the Auth instance.
      *
      * @return void
+     * @throws \ReflectionException
      */
     public function test_auth_uses_user_provider_when_bound(): void
     {
@@ -104,11 +110,11 @@ final class AuthServiceProviderTest extends ApplicationTestCase
             }
         };
 
-        $provider = new class ($user) implements UserProviderInterface {
+        $provider = new readonly class ($user) implements UserProviderInterface {
             /**
              * @param UserInterface $u
              */
-            public function __construct(private readonly UserInterface $u)
+            public function __construct(private UserInterface $u)
             {
             }
 

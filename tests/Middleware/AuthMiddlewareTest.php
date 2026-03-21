@@ -155,13 +155,13 @@ final class AuthMiddlewareTest extends TestCase
                 return 1;
             }
         };
-        $provider = new class ($user) implements UserProviderInterface {
+        $provider = new readonly class ($user) implements UserProviderInterface {
             /**
              * Constructor
              *
              * @param UserInterface $u
              */
-            public function __construct(private readonly UserInterface $u)
+            public function __construct(private UserInterface $u)
             {
             }
 

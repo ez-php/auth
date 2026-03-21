@@ -45,13 +45,13 @@ final class AuthTest extends TestCase
      */
     private function makeUser(int|string $id = 1): UserInterface
     {
-        return new class ($id) implements UserInterface {
+        return new readonly class ($id) implements UserInterface {
             /**
              * Constructor
              *
              * @param int|string $id
              */
-            public function __construct(private readonly int|string $id)
+            public function __construct(private int|string $id)
             {
             }
 
@@ -224,13 +224,13 @@ final class AuthTest extends TestCase
     public function test_user_restored_from_session_via_provider(): void
     {
         $user = $this->makeUser(7);
-        $provider = new class ($user) implements UserProviderInterface {
+        $provider = new readonly class ($user) implements UserProviderInterface {
             /**
              * Constructor
              *
              * @param UserInterface $user
              */
-            public function __construct(private readonly UserInterface $user)
+            public function __construct(private UserInterface $user)
             {
             }
 

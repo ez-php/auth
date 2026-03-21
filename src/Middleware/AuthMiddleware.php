@@ -25,7 +25,7 @@ use EzPhp\Http\Response;
  *
  * @package EzPhp\Auth\Middleware
  */
-final class AuthMiddleware implements MiddlewareInterface
+final readonly class AuthMiddleware implements MiddlewareInterface
 {
     /**
      * AuthMiddleware Constructor
@@ -34,8 +34,8 @@ final class AuthMiddleware implements MiddlewareInterface
      * @param UserProviderInterface|null $userProvider  Optional provider for dynamic user lookup.
      */
     public function __construct(
-        private readonly array $validTokens = [],
-        private readonly ?UserProviderInterface $userProvider = null,
+        private array $validTokens = [],
+        private ?UserProviderInterface $userProvider = null,
     ) {
     }
 
