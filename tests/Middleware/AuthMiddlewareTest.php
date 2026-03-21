@@ -154,6 +154,14 @@ final class AuthMiddlewareTest extends TestCase
             {
                 return 1;
             }
+
+            /**
+             * @return string
+             */
+            public function getAuthPassword(): string
+            {
+                return '';
+            }
         };
         $provider = new readonly class ($user) implements UserProviderInterface {
             /**
@@ -183,6 +191,26 @@ final class AuthMiddlewareTest extends TestCase
             public function findByToken(string $token): ?UserInterface
             {
                 return $token === 'valid-token' ? $this->u : null;
+            }
+
+            /**
+             * @param string $identifier
+             *
+             * @return UserInterface|null
+             */
+            public function findByCredentials(string $identifier): ?UserInterface
+            {
+                return null;
+            }
+
+            /**
+             * @param string $token
+             *
+             * @return UserInterface|null
+             */
+            public function findByRememberToken(string $token): ?UserInterface
+            {
+                return null;
             }
         };
 
@@ -220,6 +248,26 @@ final class AuthMiddlewareTest extends TestCase
              * @return UserInterface|null
              */
             public function findByToken(string $token): ?UserInterface
+            {
+                return null;
+            }
+
+            /**
+             * @param string $identifier
+             *
+             * @return UserInterface|null
+             */
+            public function findByCredentials(string $identifier): ?UserInterface
+            {
+                return null;
+            }
+
+            /**
+             * @param string $token
+             *
+             * @return UserInterface|null
+             */
+            public function findByRememberToken(string $token): ?UserInterface
             {
                 return null;
             }

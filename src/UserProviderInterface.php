@@ -30,4 +30,26 @@ interface UserProviderInterface
      * @return UserInterface|null
      */
     public function findByToken(string $token): ?UserInterface;
+
+    /**
+     * Find a user by their login identifier (e.g. username or e-mail address).
+     *
+     * Used by Auth::attempt() to look up the user before password verification.
+     *
+     * @param string $identifier
+     *
+     * @return UserInterface|null
+     */
+    public function findByCredentials(string $identifier): ?UserInterface;
+
+    /**
+     * Find a user by a remember-me token.
+     *
+     * Used by Auth::attemptRemember() to restore a persistent session.
+     *
+     * @param string $token
+     *
+     * @return UserInterface|null
+     */
+    public function findByRememberToken(string $token): ?UserInterface;
 }

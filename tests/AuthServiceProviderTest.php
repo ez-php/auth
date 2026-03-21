@@ -77,6 +77,14 @@ final class AuthServiceProviderTest extends ApplicationTestCase
             {
                 return 1;
             }
+
+            /**
+             * @return string
+             */
+            public function getAuthPassword(): string
+            {
+                return '';
+            }
         };
 
         Auth::login($user);
@@ -108,6 +116,14 @@ final class AuthServiceProviderTest extends ApplicationTestCase
             {
                 return 42;
             }
+
+            /**
+             * @return string
+             */
+            public function getAuthPassword(): string
+            {
+                return '';
+            }
         };
 
         $provider = new readonly class ($user) implements UserProviderInterface {
@@ -134,6 +150,26 @@ final class AuthServiceProviderTest extends ApplicationTestCase
              * @return UserInterface|null
              */
             public function findByToken(string $token): ?UserInterface
+            {
+                return null;
+            }
+
+            /**
+             * @param string $identifier
+             *
+             * @return UserInterface|null
+             */
+            public function findByCredentials(string $identifier): ?UserInterface
+            {
+                return null;
+            }
+
+            /**
+             * @param string $token
+             *
+             * @return UserInterface|null
+             */
+            public function findByRememberToken(string $token): ?UserInterface
             {
                 return null;
             }

@@ -19,4 +19,13 @@ interface UserInterface
      * @return int|string
      */
     public function getAuthId(): int|string;
+
+    /**
+     * Return the hashed password for this user.
+     *
+     * Used by Auth::attempt() to verify the supplied plain-text password.
+     *
+     * @return string
+     */
+    public function getAuthPassword(): string;
 }

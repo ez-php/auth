@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace EzPhp\Auth;
 
+use EzPhp\RateLimiter\RateLimiterInterface;
+use RuntimeException;
+
 /**
  * Class Auth
  *
@@ -16,19 +19,29 @@ namespace EzPhp\Auth;
  *     on subsequent requests Auth::user() restores the user via the provider.
  *
  * Usage:
- *   Auth::check()                        // bool
- *   Auth::user()                         // ?UserInterface
- *   Auth::id()                           // int|string|null
- *   Auth::login($user)                   // void
- *   Auth::logout()                       // void
- *   Auth::hashPassword($plain)           // string
- *   Auth::verifyPassword($plain, $hash)  // bool
+ *   Auth::check()                                                  // bool
+ *   Auth::user()                                                   // ?UserInterface
+ *   Auth::id()                                                     // int|string|null
+ *   Auth::login($user)                                             // void
+ *   Auth::logout()                                                 // void
+ *   Auth::attempt($id, $pass, $provider)                          // bool
+ *   Auth::loginWithRemember($user)                                 // string
+ *   Auth::verifyRememberToken($token)                              // bool
+ *   Auth::attemptRemember($token, $provider)                       // bool
+ *   Auth::can($permission)                                         // bool
+ *   Auth::hasRole($role)                                           // bool
+ *   Auth::guard('web')                                             // Auth
+ *   Auth::hashPassword($plain)                                     // string
+ *   Auth::verifyPassword($plain, $hash)                            // bool
  *
  * @package EzPhp\Auth
  */
 final class Auth
 {
     private static ?self $instance = null;
+
+    /** @var array<string, self> */
+    private static array $guards = [];
 
     private ?UserInterface $currentUser = null;
 
@@ -71,6 +84,38 @@ final class Auth
     public static function resetInstance(): void
     {
         self::$instance = null;
+    }
+
+    // ─── Multi-guard support ──────────────────────────────────────────────────
+
+    /**
+     * Return (or lazily create) a named Auth guard instance.
+     *
+     * Guards are independent — each holds its own authenticated user and
+     * session key. Calling Auth::guard('api')->login($user) only affects
+     * the 'api' guard; Auth::check() (default guard) is unaffected.
+     *
+     * @param string $name
+     *
+     * @return self
+     */
+    public static function guard(string $name): self
+    {
+        if (!isset(self::$guards[$name])) {
+            self::$guards[$name] = new self();
+        }
+
+        return self::$guards[$name];
+    }
+
+    /**
+     * Clear the named-guard registry (useful in tests).
+     *
+     * @return void
+     */
+    public static function resetGuards(): void
+    {
+        self::$guards = [];
     }
 
     // ─── Static facade ────────────────────────────────────────────────────────
@@ -119,6 +164,153 @@ final class Auth
     }
 
     /**
+     * Attempt to authenticate a user by identifier and plain-text password.
+     *
+     * If a RateLimiterInterface is provided the identifier is used as the key.
+     * The method returns false immediately when the limit is exceeded; on a
+     * failed attempt (user not found or wrong password) a hit is recorded.
+     * On success the limiter counter is cleared and the user is logged in.
+     *
+     * @param string                   $identifier    Login identifier (e.g. email or username).
+     * @param string                   $plainPassword Plain-text password to verify.
+     * @param UserProviderInterface    $provider      Provider used to look up the user.
+     * @param RateLimiterInterface|null $limiter       Optional rate limiter.
+     * @param int                      $maxAttempts   Maximum allowed attempts per window.
+     * @param int                      $decaySeconds  Limiter window length in seconds.
+     *
+     * @return bool
+     */
+    public static function attempt(
+        string $identifier,
+        string $plainPassword,
+        UserProviderInterface $provider,
+        ?RateLimiterInterface $limiter = null,
+        int $maxAttempts = 5,
+        int $decaySeconds = 60,
+    ): bool {
+        return self::getInstance()->attemptLogin(
+            $identifier,
+            $plainPassword,
+            $provider,
+            $limiter,
+            $maxAttempts,
+            $decaySeconds,
+        );
+    }
+
+    /**
+     * Log in the user and generate a remember-me token.
+     *
+     * The raw token is returned to the caller so the application can set it
+     * as a cookie. A SHA-256 hash of the token is stored in the session under
+     * 'auth_remember_token' for later verification without re-hashing.
+     *
+     * Requires an active PHP session.
+     *
+     * @param UserInterface $user
+     *
+     * @return string  Raw (un-hashed) remember token — store this in the cookie.
+     */
+    public static function loginWithRemember(UserInterface $user): string
+    {
+        return self::getInstance()->loginUserWithRemember($user);
+    }
+
+    /**
+     * Verify a raw remember token against the hash stored in the session.
+     *
+     * @param string $token  Raw token from the cookie.
+     *
+     * @return bool
+     */
+    public static function verifyRememberToken(string $token): bool
+    {
+        return self::getInstance()->checkRememberToken($token);
+    }
+
+    /**
+     * Attempt to authenticate a user via a remember-me token.
+     *
+     * Calls $provider->findByRememberToken($token). If a user is found the
+     * user is logged in and true is returned.
+     *
+     * @param string                $token    Raw remember token from the cookie.
+     * @param UserProviderInterface $provider Provider used to look up the user.
+     *
+     * @return bool
+     */
+    public static function attemptRemember(string $token, UserProviderInterface $provider): bool
+    {
+        return self::getInstance()->attemptRememberLogin($token, $provider);
+    }
+
+    /**
+     * Return true if the currently authenticated user has the given permission.
+     *
+     * Returns false when no user is authenticated.
+     * Delegates to UserInterface::can() when the user implements AuthorizableInterface.
+     * Throws RuntimeException when the user does not implement AuthorizableInterface.
+     *
+     * @param string $permission
+     *
+     * @return bool
+     *
+     * @throws RuntimeException
+     */
+    public static function can(string $permission): bool
+    {
+        $user = self::user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user instanceof AuthorizableInterface) {
+            return $user->can($permission);
+        }
+
+        throw new RuntimeException(
+            sprintf(
+                'User class "%s" does not implement AuthorizableInterface.',
+                $user::class,
+            ),
+        );
+    }
+
+    /**
+     * Return true if the currently authenticated user holds the given role.
+     *
+     * Returns false when no user is authenticated.
+     * Delegates to UserInterface::hasRole() when the user implements AuthorizableInterface.
+     * Throws RuntimeException when the user does not implement AuthorizableInterface.
+     *
+     * @param string $role
+     *
+     * @return bool
+     *
+     * @throws RuntimeException
+     */
+    public static function hasRole(string $role): bool
+    {
+        $user = self::user();
+
+        if ($user === null) {
+            return false;
+        }
+
+        if ($user instanceof AuthorizableInterface) {
+            return $user->hasRole($role);
+        }
+
+        throw new RuntimeException(
+            sprintf(
+                'User class "%s" does not implement AuthorizableInterface.',
+                $user::class,
+            ),
+        );
+    }
+
+    /**
      * Hash a plain-text password using PHP's default hashing algorithm (bcrypt).
      */
     public static function hashPassword(string $plain): string
@@ -132,6 +324,48 @@ final class Auth
     public static function verifyPassword(string $plain, string $hash): bool
     {
         return password_verify($plain, $hash);
+    }
+
+    // ─── Instance methods (called on named guards) ────────────────────────────
+
+    /**
+     * Return the currently authenticated user for this guard instance.
+     *
+     * @return UserInterface|null
+     */
+    public function resolveCurrentUser(): ?UserInterface
+    {
+        return $this->resolveUser();
+    }
+
+    /**
+     * Authenticate the given user on this guard instance.
+     *
+     * @param UserInterface $user
+     *
+     * @return void
+     */
+    public function loginUser(UserInterface $user): void
+    {
+        $this->currentUser = $user;
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['auth_id'] = $user->getAuthId();
+        }
+    }
+
+    /**
+     * De-authenticate the current user on this guard instance.
+     *
+     * @return void
+     */
+    public function logoutUser(): void
+    {
+        $this->currentUser = null;
+
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            unset($_SESSION['auth_id']);
+        }
     }
 
     // ─── Instance logic ───────────────────────────────────────────────────────
@@ -158,28 +392,108 @@ final class Auth
     }
 
     /**
-     * @param UserInterface $user
+     * @param string                    $identifier
+     * @param string                    $plainPassword
+     * @param UserProviderInterface     $provider
+     * @param RateLimiterInterface|null $limiter
+     * @param int                       $maxAttempts
+     * @param int                       $decaySeconds
      *
-     * @return void
+     * @return bool
      */
-    private function loginUser(UserInterface $user): void
-    {
-        $this->currentUser = $user;
-
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            $_SESSION['auth_id'] = $user->getAuthId();
+    private function attemptLogin(
+        string $identifier,
+        string $plainPassword,
+        UserProviderInterface $provider,
+        ?RateLimiterInterface $limiter,
+        int $maxAttempts,
+        int $decaySeconds,
+    ): bool {
+        if ($limiter !== null && $limiter->tooManyAttempts($identifier, $maxAttempts)) {
+            return false;
         }
+
+        $user = $provider->findByCredentials($identifier);
+
+        if ($user === null) {
+            if ($limiter !== null) {
+                $limiter->attempt($identifier, $maxAttempts, $decaySeconds);
+            }
+
+            return false;
+        }
+
+        if (!self::verifyPassword($plainPassword, $user->getAuthPassword())) {
+            if ($limiter !== null) {
+                $limiter->attempt($identifier, $maxAttempts, $decaySeconds);
+            }
+
+            return false;
+        }
+
+        if ($limiter !== null) {
+            $limiter->resetAttempts($identifier);
+        }
+
+        $this->loginUser($user);
+
+        return true;
     }
 
     /**
-     * @return void
+     * @param UserInterface $user
+     *
+     * @return string
      */
-    private function logoutUser(): void
+    private function loginUserWithRemember(UserInterface $user): string
     {
-        $this->currentUser = null;
+        $this->loginUser($user);
+
+        $token = bin2hex(random_bytes(32));
 
         if (session_status() === PHP_SESSION_ACTIVE) {
-            unset($_SESSION['auth_id']);
+            $_SESSION['auth_remember_token'] = hash('sha256', $token);
         }
+
+        return $token;
+    }
+
+    /**
+     * @param string $token
+     *
+     * @return bool
+     */
+    private function checkRememberToken(string $token): bool
+    {
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            return false;
+        }
+
+        $stored = $_SESSION['auth_remember_token'] ?? '';
+
+        if (!is_string($stored) || $stored === '') {
+            return false;
+        }
+
+        return hash_equals($stored, hash('sha256', $token));
+    }
+
+    /**
+     * @param string                $token
+     * @param UserProviderInterface $provider
+     *
+     * @return bool
+     */
+    private function attemptRememberLogin(string $token, UserProviderInterface $provider): bool
+    {
+        $user = $provider->findByRememberToken($token);
+
+        if ($user === null) {
+            return false;
+        }
+
+        $this->loginUser($user);
+
+        return true;
     }
 }
