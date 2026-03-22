@@ -146,6 +146,12 @@ After scaffolding:
 
 Only set a port for services the module actually uses. Modules without external services need no port config.
 
+### 4 — Monorepo scripts
+
+`packages.sh` at the project root is the **central package registry**. Both `push_all.sh` and `update_all.sh` source it — the package list lives in exactly one place.
+
+When adding a new module, add `"$ROOT/modules/<name>"` to the `PACKAGES` array in `packages.sh` in **alphabetical order** among the other `modules/*` entries (before `framework`, `ez-php`, and the root entry at the end).
+
 ---
 
 # Package: ez-php/auth
@@ -289,4 +295,3 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 | Rate limiting login attempts | `ez-php/rate-limiter` |
 | HTTP Request / Response | `ez-php/http` |
 | Middleware infrastructure | `ez-php/framework` (`MiddlewareInterface`) |
-
