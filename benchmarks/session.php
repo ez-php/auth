@@ -66,7 +66,17 @@ final class BenchUserProvider implements UserProviderInterface
         return $id === 1 ? $this->user : null;
     }
 
-    public function findByCredentials(string $id, string $password): ?UserInterface
+    public function findByToken(string $token): ?UserInterface
+    {
+        return null;
+    }
+
+    public function findByCredentials(string $identifier): ?UserInterface
+    {
+        return null;
+    }
+
+    public function findByRememberToken(string $token): ?UserInterface
     {
         return null;
     }
