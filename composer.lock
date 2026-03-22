@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "0eb2d205e03760871281e1c0edb19c51",
+    "content-hash": "450801537bcdb5526c3d70856ab13540",
     "packages": [
         {
             "name": "ez-php/cache",
@@ -968,6 +968,67 @@
                 "source": "https://github.com/ez-php/testing"
             },
             "time": "2026-03-22T19:23:30+00:00"
+        },
+        {
+            "name": "ez-php/testing-application",
+            "version": "0.8.2",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ez-php/testing-application.git",
+                "reference": "bd268ac003bf02c3085eec768878ec51069a2167"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ez-php/testing-application/zipball/bd268ac003bf02c3085eec768878ec51069a2167",
+                "reference": "bd268ac003bf02c3085eec768878ec51069a2167",
+                "shasum": ""
+            },
+            "require": {
+                "ez-php/contracts": "0.*",
+                "ez-php/framework": "0.*",
+                "ez-php/http": "0.*",
+                "ez-php/testing": "0.*",
+                "php": "^8.5",
+                "phpunit/phpunit": "^13.0"
+            },
+            "require-dev": {
+                "ez-php/docker": "0.*",
+                "friendsofphp/php-cs-fixer": "^3.94",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-strict-rules": "^2.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "EzPhp\\Testing\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Uretschnig",
+                    "email": "andreas.uretschnig@gmail.com"
+                }
+            ],
+            "description": "Framework-coupled test base classes for ez-php — ApplicationTestCase, DatabaseTestCase, HttpTestCase",
+            "homepage": "https://github.com/ez-php/testing-application",
+            "keywords": [
+                "ez-php",
+                "framework",
+                "php",
+                "phpunit",
+                "test-case",
+                "testing"
+            ],
+            "support": {
+                "issues": "https://github.com/ez-php/testing-application/issues",
+                "source": "https://github.com/ez-php/testing-application"
+            },
+            "time": "2026-03-22T21:20:39+00:00"
         },
         {
             "name": "ez-php/validation",
