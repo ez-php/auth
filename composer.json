@@ -1,6 +1,6 @@
 {
   "name": "ez-php/auth",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "Authentication module for the ez-php framework — session and token-based auth with a flexible user provider interface",
   "type": "library",
   "license": "MIT",
