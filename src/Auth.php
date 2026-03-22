@@ -121,7 +121,10 @@ final class Auth
     // ─── Static facade ────────────────────────────────────────────────────────
 
     /**
-     * Return the currently authenticated user, or null.
+     * Return the currently authenticated user, or null when no user is authenticated.
+     *
+     * Missing resource convention: returns null — never throws. Use Auth::check() to
+     * distinguish "not authenticated" from other states before accessing the user object.
      */
     public static function user(): ?UserInterface
     {
