@@ -2,6 +2,12 @@
 
 All notable changes to `ez-php/auth` are documented here.
 
+## [v0.8.6] — 2026-03-23
+
+### Documentation
+- Update CHANGELOG for v0.8.5 [skip ci] (1aab56a)
+
+
 ## [v0.8.5] — 2026-03-23
 
 ### Documentation
