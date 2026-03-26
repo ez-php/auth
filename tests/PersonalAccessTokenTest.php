@@ -7,7 +7,6 @@ namespace Tests;
 use DateTimeImmutable;
 use EzPhp\Auth\PersonalAccessToken;
 use PHPUnit\Framework\Attributes\CoversClass;
-use Tests\TestCase;
 
 /**
  * Class PersonalAccessTokenTest

@@ -53,7 +53,7 @@ final class PersonalAccessTokenManager
         ?int $expiresIn = null,
     ): array {
         $rawToken = bin2hex(random_bytes(40));
-        $hash     = hash('sha256', $rawToken);
+        $hash = hash('sha256', $rawToken);
 
         $expiresAt = $expiresIn !== null
             ? (new DateTimeImmutable())->modify("+{$expiresIn} seconds")
@@ -65,10 +65,10 @@ final class PersonalAccessTokenManager
             'INSERT INTO ' . self::TABLE . ' (user_id, name, token, abilities, expires_at, created_at)
              VALUES (:user_id, :name, :token, :abilities, :expires_at, :created_at)',
             [
-                'user_id'    => $userId,
-                'name'       => $name,
-                'token'      => $hash,
-                'abilities'  => implode(',', $abilities),
+                'user_id' => $userId,
+                'name' => $name,
+                'token' => $hash,
+                'abilities' => implode(',', $abilities),
                 'expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
                 'created_at' => $createdAt->format('Y-m-d H:i:s'),
             ],
@@ -158,7 +158,7 @@ final class PersonalAccessTokenManager
             return null;
         }
 
-        $old       = $this->hydrate($rows[0]);
+        $old = $this->hydrate($rows[0]);
         $expiresIn = $old->expiresAt !== null
             ? max(0, (int) (new DateTimeImmutable())->diff($old->expiresAt)->s
                 + ((int) (new DateTimeImmutable())->diff($old->expiresAt)->i) * 60
@@ -211,7 +211,7 @@ final class PersonalAccessTokenManager
     private function hydrate(array $row): PersonalAccessToken
     {
         $abilitiesRaw = isset($row['abilities']) && is_string($row['abilities']) ? $row['abilities'] : '*';
-        $abilities    = array_filter(explode(',', $abilitiesRaw), static fn (string $a): bool => $a !== '');
+        $abilities = array_filter(explode(',', $abilitiesRaw), static fn (string $a): bool => $a !== '');
 
         $lastUsedAt = isset($row['last_used_at']) && is_string($row['last_used_at'])
             ? new DateTimeImmutable($row['last_used_at'])

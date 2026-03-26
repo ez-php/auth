@@ -10,7 +10,7 @@ use EzPhp\Contracts\MigrationInterface;
  * Copy this file into your application's database/migrations/ directory
  * and run `php ez migrate` to apply it.
  */
-return new class implements MigrationInterface {
+return new class () implements MigrationInterface {
     /**
      * @param PDO $db
      *

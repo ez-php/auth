@@ -62,16 +62,16 @@ final class TokenCommand implements CommandInterface
     public function getHelp(): string
     {
         return <<<'HELP'
-Usage: auth:token <user_id> <name> [--abilities=*] [--expires=<seconds>]
+            Usage: auth:token <user_id> <name> [--abilities=*] [--expires=<seconds>]
 
-Arguments:
-  user_id      The owning user ID (integer or string)
-  name         Human-readable token label (e.g. "CI/CD pipeline")
+            Arguments:
+              user_id      The owning user ID (integer or string)
+              name         Human-readable token label (e.g. "CI/CD pipeline")
 
-Options:
-  --abilities  Comma-separated ability list (default: "*" = all)
-  --expires    Seconds until expiry; omit for permanent token
-HELP;
+            Options:
+              --abilities  Comma-separated ability list (default: "*" = all)
+              --expires    Seconds until expiry; omit for permanent token
+            HELP;
     }
 
     /**
@@ -81,9 +81,9 @@ HELP;
      */
     public function handle(array $args): int
     {
-        $input  = new Input($args);
+        $input = new Input($args);
         $userId = $input->argument(0);
-        $name   = $input->argument(1);
+        $name = $input->argument(1);
 
         if ($userId === null || $userId === '') {
             echo "Error: missing required argument: user_id\n";
@@ -98,7 +98,7 @@ HELP;
         }
 
         $abilitiesStr = $input->option('abilities', '*');
-        $abilities    = array_filter(
+        $abilities = array_filter(
             array_map('trim', explode(',', $abilitiesStr)),
             static fn (string $a): bool => $a !== '',
         );
@@ -108,7 +108,7 @@ HELP;
         }
 
         $expiresStr = $input->option('expires', '');
-        $expiresIn  = $expiresStr !== '' ? (int) $expiresStr : null;
+        $expiresIn = $expiresStr !== '' ? (int) $expiresStr : null;
 
         [$rawToken, $token] = $this->manager->create(
             userId: $userId,
@@ -122,10 +122,10 @@ HELP;
         echo "  Token ID : {$token->id}\n";
         echo "  User ID  : {$token->userId}\n";
         echo "  Name     : {$token->name}\n";
-        echo "  Abilities: " . implode(', ', $token->abilities) . "\n";
+        echo '  Abilities: ' . implode(', ', $token->abilities) . "\n";
 
         if ($token->expiresAt !== null) {
-            echo "  Expires  : " . $token->expiresAt->format('Y-m-d H:i:s') . "\n";
+            echo '  Expires  : ' . $token->expiresAt->format('Y-m-d H:i:s') . "\n";
         } else {
             echo "  Expires  : never\n";
         }
