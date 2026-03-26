@@ -168,13 +168,22 @@ src/
 ├── AuthServiceProvider.php        — Registers Auth in the container; injects UserProviderInterface if bound
 ├── UserInterface.php              — Contract for authenticated user objects (getAuthId)
 ├── UserProviderInterface.php      — Contract for user lookup by ID or Bearer token
+├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
+├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired
+├── Console/
+│   └── TokenCommand.php          — auth:token command: generates a token for a user, prints raw token once
 └── Middleware/
     └── AuthMiddleware.php         — Validates Bearer tokens; supports static list or UserProviderInterface
+
+database/
+└── migrations/
+    └── 2024_01_01_000000_create_personal_access_tokens_table.php — Copy to app's database/migrations/ before migrating
 
 tests/
 ├── TestCase.php                   — Base PHPUnit test case
 ├── AuthTest.php                   — Covers Auth: login, logout, check, id, session restore, instance management
 ├── AuthServiceProviderTest.php    — Covers AuthServiceProvider registration with and without a UserProvider
+├── PersonalAccessTokenTest.php    — Covers PersonalAccessToken: isExpired, can, abilities
 └── Middleware/
     └── AuthMiddlewareTest.php     — Covers AuthMiddleware: missing header, invalid token, static list, provider mode
 ```
@@ -280,6 +289,45 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 - **Always call `Auth::resetInstance()`** in `setUp()` and `tearDown()` of any test that exercises `Auth`. Forgetting this causes state to leak between tests.
 - **Inline anonymous classes** replace mocks for `UserInterface` and `UserProviderInterface` — keeps tests explicit and avoids mock framework noise.
 - **`#[UsesClass]` required** — PHPUnit is configured with `beStrictAboutCoverageMetadata=true`. Declare indirectly used classes with `#[UsesClass]`.
+
+---
+
+### PersonalAccessToken (`src/PersonalAccessToken.php`)
+
+Immutable value object representing a stored token record. The raw token is never held — only the SHA-256 hash. Properties: `id`, `userId`, `name`, `tokenHash`, `abilities` (string[]), `lastUsedAt`, `expiresAt`, `createdAt`.
+
+| Method | Behaviour |
+|---|---|
+| `isExpired()` | Returns `true` when `expiresAt` is set and is in the past; `false` when no expiry |
+| `can(string $ability)` | Returns `true` if `'*'` is in abilities (all-access) or ability is listed explicitly |
+
+---
+
+### PersonalAccessTokenManager (`src/PersonalAccessTokenManager.php`)
+
+Manages token storage using `DatabaseInterface`. Works with the `personal_access_tokens` table created by the bundled migration.
+
+| Method | Behaviour |
+|---|---|
+| `create(userId, name, abilities, expiresIn?)` | Generates raw token + hash, inserts row, returns `[rawToken, PersonalAccessToken]` |
+| `find(rawToken)` | Hashes the raw token, looks up the row, touches `last_used_at`, returns null if missing or expired |
+| `revoke(id)` | Deletes the token row by ID |
+| `rotate(id)` | Revokes the old token and creates a new one with identical name/abilities/remaining TTL |
+| `pruneExpired()` | Deletes all rows where `expires_at < now`; returns the row count |
+
+Token format: `bin2hex(random_bytes(40))` — 80 hex characters. SHA-256 hash stored in the `token` column.
+
+---
+
+### TokenCommand (`src/Console/TokenCommand.php`)
+
+Console command `auth:token`. Creates a personal access token for a user and prints the raw token once.
+
+```
+ez auth:token <user_id> <name> [--abilities=read,write] [--expires=3600]
+```
+
+Registration: `$app->registerCommand(TokenCommand::class)` before bootstrap (same pattern as `WorkCommand`).
 
 ---
 
