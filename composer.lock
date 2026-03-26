@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "e2debb560f8abb53d61fcfa273197559",
+    "content-hash": "c0a33ff7afdc5b1148568bdb15dc20c8",
     "packages": [
         {
             "name": "ez-php/cache",
@@ -63,6 +63,63 @@
                 "source": "https://github.com/ez-php/cache"
             },
             "time": "2026-03-25T00:25:34+00:00"
+        },
+        {
+            "name": "ez-php/console",
+            "version": "1.0.1",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/ez-php/console.git",
+                "reference": "dc0df461a787071b68286824aadc846a6816d76b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/ez-php/console/zipball/dc0df461a787071b68286824aadc846a6816d76b",
+                "reference": "dc0df461a787071b68286824aadc846a6816d76b",
+                "shasum": ""
+            },
+            "require": {
+                "php": "^8.5"
+            },
+            "require-dev": {
+                "ez-php/docker": "^1.0",
+                "ez-php/testing-application": "^1.0",
+                "friendsofphp/php-cs-fixer": "^3.94",
+                "phpstan/phpstan": "^2.1",
+                "phpstan/phpstan-deprecation-rules": "^2.0",
+                "phpstan/phpstan-strict-rules": "^2.0",
+                "phpunit/phpunit": "^13.0"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "EzPhp\\Console\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Andreas Uretschnig",
+                    "email": "andreas.uretschnig@gmail.com"
+                }
+            ],
+            "description": "Lightweight console infrastructure for PHP — command dispatcher, argument parser, and colored output helpers",
+            "homepage": "https://github.com/ez-php/console",
+            "keywords": [
+                "cli",
+                "command",
+                "console",
+                "php",
+                "terminal"
+            ],
+            "support": {
+                "issues": "https://github.com/ez-php/console/issues",
+                "source": "https://github.com/ez-php/console"
+            },
+            "time": "2026-03-25T00:25:33+00:00"
         },
         {
             "name": "ez-php/contracts",
@@ -575,63 +632,6 @@
                 "source": "https://github.com/igorw/evenement/tree/v3.0.2"
             },
             "time": "2023-08-08T05:53:35+00:00"
-        },
-        {
-            "name": "ez-php/console",
-            "version": "1.0.1",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/ez-php/console.git",
-                "reference": "dc0df461a787071b68286824aadc846a6816d76b"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/ez-php/console/zipball/dc0df461a787071b68286824aadc846a6816d76b",
-                "reference": "dc0df461a787071b68286824aadc846a6816d76b",
-                "shasum": ""
-            },
-            "require": {
-                "php": "^8.5"
-            },
-            "require-dev": {
-                "ez-php/docker": "^1.0",
-                "ez-php/testing-application": "^1.0",
-                "friendsofphp/php-cs-fixer": "^3.94",
-                "phpstan/phpstan": "^2.1",
-                "phpstan/phpstan-deprecation-rules": "^2.0",
-                "phpstan/phpstan-strict-rules": "^2.0",
-                "phpunit/phpunit": "^13.0"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "EzPhp\\Console\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "MIT"
-            ],
-            "authors": [
-                {
-                    "name": "Andreas Uretschnig",
-                    "email": "andreas.uretschnig@gmail.com"
-                }
-            ],
-            "description": "Lightweight console infrastructure for PHP — command dispatcher, argument parser, and colored output helpers",
-            "homepage": "https://github.com/ez-php/console",
-            "keywords": [
-                "cli",
-                "command",
-                "console",
-                "php",
-                "terminal"
-            ],
-            "support": {
-                "issues": "https://github.com/ez-php/console/issues",
-                "source": "https://github.com/ez-php/console"
-            },
-            "time": "2026-03-25T00:25:33+00:00"
         },
         {
             "name": "ez-php/docker",
@@ -1497,11 +1497,11 @@
         },
         {
             "name": "phpstan/phpstan",
-            "version": "2.1.43",
+            "version": "2.1.44",
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/d01bebe3edfd4d49b9666ee5b8271ddca561042f",
-                "reference": "d01bebe3edfd4d49b9666ee5b8271ddca561042f",
+                "url": "https://api.github.com/repos/phpstan/phpstan/zipball/4a88c083c668b2c364a425c9b3171b2d9ea5d218",
+                "reference": "4a88c083c668b2c364a425c9b3171b2d9ea5d218",
                 "shasum": ""
             },
             "require": {
@@ -1546,7 +1546,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-24T20:40:50+00:00"
+            "time": "2026-03-25T17:34:21+00:00"
         },
         {
             "name": "phpstan/phpstan-deprecation-rules",
