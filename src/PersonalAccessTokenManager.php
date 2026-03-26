@@ -108,7 +108,7 @@ final class PersonalAccessTokenManager
             ['token' => $hash],
         );
 
-        if ($rows === [] || !isset($rows[0])) {
+        if ($rows === []) {
             return null;
         }
 
@@ -118,7 +118,8 @@ final class PersonalAccessTokenManager
             return null;
         }
 
-        $this->touchLastUsed((int) $rows[0]['id']);
+        $rawId = $rows[0]['id'];
+        $this->touchLastUsed(is_int($rawId) ? $rawId : (is_string($rawId) ? (int) $rawId : 0));
 
         return $token;
     }
@@ -154,7 +155,7 @@ final class PersonalAccessTokenManager
             ['id' => $id],
         );
 
-        if ($rows === [] || !isset($rows[0])) {
+        if ($rows === []) {
             return null;
         }
 
@@ -178,12 +179,10 @@ final class PersonalAccessTokenManager
      */
     public function pruneExpired(): int
     {
-        $this->db->execute(
+        return $this->db->execute(
             'DELETE FROM ' . self::TABLE . ' WHERE expires_at IS NOT NULL AND expires_at < :now',
             ['now' => (new DateTimeImmutable())->format('Y-m-d H:i:s')],
         );
-
-        return $this->db->getPdo()->rowCount();
     }
 
     /**
