@@ -61,17 +61,18 @@ final class PersonalAccessTokenManager
 
         $createdAt = new DateTimeImmutable();
 
-        $this->db->getPdo()->prepare(
+        $this->db->execute(
             'INSERT INTO ' . self::TABLE . ' (user_id, name, token, abilities, expires_at, created_at)
              VALUES (:user_id, :name, :token, :abilities, :expires_at, :created_at)',
-        )->execute([
-            'user_id' => $userId,
-            'name' => $name,
-            'token' => $hash,
-            'abilities' => implode(',', $abilities),
-            'expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
-            'created_at' => $createdAt->format('Y-m-d H:i:s'),
-        ]);
+            [
+                'user_id' => $userId,
+                'name' => $name,
+                'token' => $hash,
+                'abilities' => implode(',', $abilities),
+                'expires_at' => $expiresAt?->format('Y-m-d H:i:s'),
+                'created_at' => $createdAt->format('Y-m-d H:i:s'),
+            ],
+        );
 
         $id = (int) $this->db->getPdo()->lastInsertId();
 
@@ -132,9 +133,10 @@ final class PersonalAccessTokenManager
      */
     public function revoke(int|string $id): void
     {
-        $this->db->getPdo()->prepare(
+        $this->db->execute(
             'DELETE FROM ' . self::TABLE . ' WHERE id = :id',
-        )->execute(['id' => $id]);
+            ['id' => $id],
+        );
     }
 
     /**
@@ -177,12 +179,10 @@ final class PersonalAccessTokenManager
      */
     public function pruneExpired(): int
     {
-        $stmt = $this->db->getPdo()->prepare(
+        return $this->db->execute(
             'DELETE FROM ' . self::TABLE . ' WHERE expires_at IS NOT NULL AND expires_at < :now',
+            ['now' => (new DateTimeImmutable())->format('Y-m-d H:i:s')],
         );
-        $stmt->execute(['now' => (new DateTimeImmutable())->format('Y-m-d H:i:s')]);
-
-        return $stmt->rowCount();
     }
 
     /**
@@ -194,9 +194,10 @@ final class PersonalAccessTokenManager
      */
     private function touchLastUsed(int $id): void
     {
-        $this->db->getPdo()->prepare(
+        $this->db->execute(
             'UPDATE ' . self::TABLE . ' SET last_used_at = :now WHERE id = :id',
-        )->execute(['now' => (new DateTimeImmutable())->format('Y-m-d H:i:s'), 'id' => $id]);
+            ['now' => (new DateTimeImmutable())->format('Y-m-d H:i:s'), 'id' => $id],
+        );
     }
 
     /**
