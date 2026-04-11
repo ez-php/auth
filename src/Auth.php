@@ -344,6 +344,13 @@ final class Auth
     /**
      * Authenticate the given user on this guard instance.
      *
+     * When a session is active this method also:
+     *   - Regenerates the session ID (prevents session-fixation attacks).
+     *   - Clears the CSRF token from the session so a fresh token is issued
+     *     on the next request (prevents pre-login CSRF token reuse).
+     *     The token is stored under the key '_csrf_token' by convention with
+     *     the framework's SessionCsrfTokenStore.
+     *
      * @param UserInterface $user
      *
      * @return void
@@ -354,6 +361,8 @@ final class Auth
 
         if (session_status() === PHP_SESSION_ACTIVE) {
             $_SESSION['auth_id'] = $user->getAuthId();
+            session_regenerate_id(true);
+            unset($_SESSION['_csrf_token']);
         }
     }
 

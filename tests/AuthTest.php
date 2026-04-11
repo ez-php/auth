@@ -340,6 +340,50 @@ final class AuthTest extends TestCase
     /**
      * @return void
      */
+    public function test_login_regenerates_session_id(): void
+    {
+        $auth = new Auth();
+        Auth::setInstance($auth);
+
+        session_start();
+        $oldId = session_id();
+
+        Auth::login($this->makeUser(5));
+
+        $newId = session_id();
+
+        session_destroy();
+
+        $this->assertNotSame('', $newId);
+        $this->assertNotSame($oldId, $newId);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_login_clears_csrf_token_from_session(): void
+    {
+        $auth = new Auth();
+        Auth::setInstance($auth);
+
+        session_start();
+        $_SESSION['_csrf_token'] = 'old-pre-login-token';
+
+        Auth::login($this->makeUser(5));
+
+        // Cast to array<string, mixed> so PHPStan does not narrow the key existence
+        // from the earlier assignment and can evaluate the assertion correctly.
+        /** @var array<string, mixed> $snapshot */
+        $snapshot = $_SESSION;
+
+        session_destroy();
+
+        $this->assertArrayNotHasKey('_csrf_token', $snapshot);
+    }
+
+    /**
+     * @return void
+     */
     public function test_logout_removes_id_from_session(): void
     {
         $auth = new Auth();
