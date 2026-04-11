@@ -34,6 +34,19 @@ use RuntimeException;
  *   Auth::hashPassword($plain)                                     // string
  *   Auth::verifyPassword($plain, $hash)                            // bool
  *
+ * ## Async / concurrent runtime warning
+ *
+ * `Auth::$instance` and `Auth::$guards` are static class properties. Under
+ * synchronous PHP-FPM / CLI this is safe because each process handles exactly
+ * one request at a time. Under concurrent runtimes (Swoole, AMPHP, ReactPHP,
+ * Fibers) these statics are **shared across all coroutines in the same process**,
+ * causing session state to leak between concurrent users.
+ *
+ * If async support is required, replace the static singleton with a
+ * per-request `Auth` instance resolved from the DI container, and call
+ * `Auth::setInstance()` at the start of each request coroutine with a
+ * freshly constructed instance.
+ *
  * @package EzPhp\Auth
  */
 final class Auth
