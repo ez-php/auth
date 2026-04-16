@@ -166,14 +166,20 @@ Session and Bearer-token authentication for ez-php applications.
 src/
 ├── Auth.php                       — Static façade and singleton; login/logout/check/user/id
 ├── AuthServiceProvider.php        — Registers Auth in the container; injects UserProviderInterface if bound
+├── JwtServiceProvider.php         — Registers JwtManager and JwtBlacklist; reads JWT_SECRET + JWT_TTL from env
 ├── UserInterface.php              — Contract for authenticated user objects (getAuthId)
 ├── UserProviderInterface.php      — Contract for user lookup by ID or Bearer token
 ├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
 ├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired
 ├── Console/
 │   └── TokenCommand.php          — auth:token command: generates a token for a user, prints raw token once
+├── Jwt/
+│   ├── JwtException.php          — Thrown on invalid/expired/malformed JWT
+│   ├── JwtManager.php            — Issues and validates HMAC-HS256 JWTs; claims: sub, iat, exp
+│   └── JwtBlacklist.php          — Cache-backed blacklist for logout; keyed by SHA-256(token), TTL = remaining lifetime
 └── Middleware/
-    └── AuthMiddleware.php         — Validates Bearer tokens; supports static list or UserProviderInterface
+    ├── AuthMiddleware.php         — Validates Bearer tokens; supports static list or UserProviderInterface
+    └── JwtMiddleware.php          — Validates JWT Bearer tokens; rejects blacklisted tokens; optionally resolves Auth user
 
 database/
 └── migrations/
@@ -184,8 +190,12 @@ tests/
 ├── AuthTest.php                   — Covers Auth: login, logout, check, id, session restore, instance management
 ├── AuthServiceProviderTest.php    — Covers AuthServiceProvider registration with and without a UserProvider
 ├── PersonalAccessTokenTest.php    — Covers PersonalAccessToken: isExpired, can, abilities
+├── Jwt/
+│   ├── JwtManagerTest.php        — Covers JwtManager: issue, validate, expiry, signature, tampered payload
+│   └── JwtBlacklistTest.php      — Covers JwtBlacklist: add, isBlacklisted, SHA-256 keying, custom prefix
 └── Middleware/
-    └── AuthMiddlewareTest.php     — Covers AuthMiddleware: missing header, invalid token, static list, provider mode
+    ├── AuthMiddlewareTest.php     — Covers AuthMiddleware: missing header, invalid token, static list, provider mode
+    └── JwtMiddlewareTest.php      — Covers JwtMiddleware: missing header, invalid/expired/blacklisted token, user resolution
 ```
 
 ---
@@ -278,7 +288,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 - **Password hashing as thin wrappers** — `Auth::hashPassword()` and `Auth::verifyPassword()` are pure delegates to PHP's `password_hash()` / `password_verify()`. They live here so callers never import raw PHP functions in application code, but carry no state and no algorithm logic of their own.
 - **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
 - **`AuthMiddleware` is `final`** — Extend behaviour by composing a new middleware that wraps or replaces it, not by subclassing.
-- **No JWT or OAuth support** — Out of scope. The token is treated as an opaque string; interpretation is delegated to `UserProviderInterface::findByToken()`.
+- **JWT is HMAC-HS256 only** — No RS256 or other asymmetric algorithms. The signing key (`JWT_SECRET`) must never be exposed to clients. Changing the secret invalidates all active tokens immediately.
 
 ---
 
@@ -289,6 +299,64 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 - **Always call `Auth::resetInstance()`** in `setUp()` and `tearDown()` of any test that exercises `Auth`. Forgetting this causes state to leak between tests.
 - **Inline anonymous classes** replace mocks for `UserInterface` and `UserProviderInterface` — keeps tests explicit and avoids mock framework noise.
 - **`#[UsesClass]` required** — PHPUnit is configured with `beStrictAboutCoverageMetadata=true`. Declare indirectly used classes with `#[UsesClass]`.
+
+---
+
+### JwtManager (`src/Jwt/JwtManager.php`)
+
+Issues and validates stateless HMAC-HS256 JSON Web Tokens.
+
+| Method | Behaviour |
+|---|---|
+| `issue(int\|string $sub): string` | Creates a signed JWT with claims `sub`, `iat`, `exp` |
+| `validate(string $token): array<string, mixed>` | Verifies structure, algorithm, signature, and expiry; throws `JwtException` on failure |
+
+**Token format:** `base64url(header).base64url(payload).base64url(HMAC-SHA256-signature)`
+
+**Config:** Constructed with `string $secret` and `int $ttl` (seconds). `JwtServiceProvider` reads these from `JWT_SECRET` and `JWT_TTL` env vars.
+
+---
+
+### JwtBlacklist (`src/Jwt/JwtBlacklist.php`)
+
+Cache-backed blacklist for logout support. The raw token is never stored — only a SHA-256 hash.
+
+| Method | Behaviour |
+|---|---|
+| `add(string $token, int $expiresAt): void` | Blacklists a token with TTL = max(1, $expiresAt − now) |
+| `isBlacklisted(string $token): bool` | Returns `true` when the token has been blacklisted |
+
+**Key format:** `<prefix><sha256(token)>` — default prefix is `jwt_bl:`.
+
+**Fallback:** `JwtServiceProvider` falls back to `ArrayDriver` when no `CacheInterface` is bound, making blacklisted tokens process-scoped (not shared across requests). Register `CacheServiceProvider` (Redis driver) before `JwtServiceProvider` for production logout support.
+
+---
+
+### JwtMiddleware (`src/Middleware/JwtMiddleware.php`)
+
+Route-level middleware. Validates the `Authorization: Bearer <token>` header.
+
+| Condition | Outcome |
+|---|---|
+| Missing or non-Bearer header | 401 Unauthorized |
+| Invalid / expired / bad-signature token | 401 Unauthorized |
+| Token is on the blacklist | 401 Unauthorized |
+| UserProvider supplied, `findById()` returns null | 401 Unauthorized |
+| Valid token, no provider | Calls next; `Auth::user()` is not set |
+| Valid token, provider returns user | `Auth::login($user)` called; calls next |
+
+Constructor: `(JwtManager $jwt, ?JwtBlacklist $blacklist = null, ?UserProviderInterface $userProvider = null)`
+
+---
+
+### JwtServiceProvider (`src/JwtServiceProvider.php`)
+
+Registers JWT services in the container.
+
+- `JwtManager` — bound lazily, reads `JWT_SECRET` and `JWT_TTL` from `getenv()`.
+- `JwtBlacklist` — bound lazily, tries to resolve `CacheInterface`; falls back to `ArrayDriver`.
+
+Register after `CacheServiceProvider` to get a fully functional blacklist.
 
 ---
 
@@ -337,7 +405,7 @@ Registration: `$app->registerCommand(TokenCommand::class)` before bootstrap (sam
 |---|---|
 | Session lifecycle (start/destroy) | Application session middleware |
 | OAuth / credential flows beyond simple hashing | Application layer or future `ez-php/credentials` |
-| JWT creation and validation | Application layer or a dedicated JWT package |
+| OAuth / SSO flows | Application layer |
 | OAuth / SSO flows | Application layer |
 | User model / database schema | Application code implementing `UserInterface` |
 | Rate limiting login attempts | `ez-php/rate-limiter` |

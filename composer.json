@@ -19,6 +19,7 @@
   "require": {
     "php": "^8.5",
     "ez-php/contracts": "^1.0",
+    "ez-php/cache": "^1.0",
     "ez-php/console": "^1.0",
     "ez-php/http": "^1.0",
     "ez-php/rate-limiter": "^1.0"
