@@ -496,6 +496,16 @@ final class AuthTest extends TestCase
             public function resetAttempts(string $key): void
             {
             }
+
+            /**
+             * @param string $key
+             *
+             * @return int
+             */
+            public function availableIn(string $key): int
+            {
+                return 0;
+            }
         };
 
         $result = Auth::attempt((string) $user->getAuthId(), 'correct', $provider, $limiter);
@@ -565,6 +575,16 @@ final class AuthTest extends TestCase
             public function resetAttempts(string $key): void
             {
                 $this->hits = 0;
+            }
+
+            /**
+             * @param string $key
+             *
+             * @return int
+             */
+            public function availableIn(string $key): int
+            {
+                return 0;
             }
         };
 
@@ -644,6 +664,16 @@ final class AuthTest extends TestCase
             {
                 $this->hits = 0;
                 $this->resetCalled = true;
+            }
+
+            /**
+             * @param string $key
+             *
+             * @return int
+             */
+            public function availableIn(string $key): int
+            {
+                return 0;
             }
         };
 
