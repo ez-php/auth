@@ -169,6 +169,7 @@ src/
 ├── JwtServiceProvider.php         — Registers JwtManager and JwtBlacklist; reads JWT_SECRET + JWT_TTL from env
 ├── UserInterface.php              — Contract for authenticated user objects (getAuthId)
 ├── UserProviderInterface.php      — Contract for user lookup by ID or Bearer token
+├── AuthorizableInterface.php      — Optional contract for policy-style authorization: can(ability, subject): bool
 ├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
 ├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired
 ├── Console/
