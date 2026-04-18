@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
-use EzPhp\Contracts\MigrationInterface;
+use EzPhp\Contracts\Schema\SchemaInterface;
+use EzPhp\Migration\MigrationInterface;
+use EzPhp\Orm\Schema\Blueprint;
 
 /**
  * Create the personal_access_tokens table.
@@ -12,36 +14,31 @@ use EzPhp\Contracts\MigrationInterface;
  */
 return new class () implements MigrationInterface {
     /**
-     * @param PDO $db
+     * @param SchemaInterface $schema
      *
      * @return void
      */
-    public function up(PDO $db): void
+    public function up(SchemaInterface $schema): void
     {
-        $db->exec('
-            CREATE TABLE IF NOT EXISTS personal_access_tokens (
-                id          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-                user_id     VARCHAR(255)    NOT NULL,
-                name        VARCHAR(255)    NOT NULL,
-                token       VARCHAR(64)     NOT NULL,
-                abilities   TEXT            NOT NULL DEFAULT \'*\',
-                last_used_at DATETIME       NULL DEFAULT NULL,
-                expires_at  DATETIME        NULL DEFAULT NULL,
-                created_at  DATETIME        NOT NULL,
-                PRIMARY KEY (id),
-                UNIQUE KEY unique_token (token),
-                KEY idx_user_id (user_id)
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
-        ');
+        $schema->create('personal_access_tokens', function (Blueprint $table): void {
+            $table->id();
+            $table->string('user_id', 255);
+            $table->string('name', 255);
+            $table->string('token', 64)->unique();
+            $table->text('abilities')->default('*');
+            $table->timestamp('last_used_at')->nullable();
+            $table->timestamp('expires_at')->nullable();
+            $table->timestamp('created_at');
+        });
     }
 
     /**
-     * @param PDO $db
+     * @param SchemaInterface $schema
      *
      * @return void
      */
-    public function down(PDO $db): void
+    public function down(SchemaInterface $schema): void
     {
-        $db->exec('DROP TABLE IF EXISTS personal_access_tokens');
+        $schema->dropIfExists('personal_access_tokens');
     }
 };
