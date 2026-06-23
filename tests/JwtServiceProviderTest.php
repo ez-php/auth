@@ -8,7 +8,6 @@ use EzPhp\Application\Application;
 use EzPhp\Auth\Jwt\JwtBlacklist;
 use EzPhp\Auth\Jwt\JwtManager;
 use EzPhp\Auth\JwtServiceProvider;
-use EzPhp\Cache\ArrayDriver;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
 use Tests\ApplicationTestCase;
@@ -22,7 +21,6 @@ use Tests\ApplicationTestCase;
 #[CoversClass(JwtServiceProvider::class)]
 #[UsesClass(JwtManager::class)]
 #[UsesClass(JwtBlacklist::class)]
-#[UsesClass(ArrayDriver::class)]
 final class JwtServiceProviderTest extends ApplicationTestCase
 {
     /**
