@@ -9,6 +9,7 @@ use EzPhp\Auth\UserProviderInterface;
 use EzPhp\Contracts\MiddlewareInterface;
 use EzPhp\Http\RequestInterface;
 use EzPhp\Http\Response;
+use EzPhp\Http\ResponseInterface;
 
 /**
  * Class AuthMiddleware
@@ -43,9 +44,9 @@ final readonly class AuthMiddleware implements MiddlewareInterface
      * @param RequestInterface $request
      * @param callable         $next
      *
-     * @return Response
+     * @return ResponseInterface
      */
-    public function handle(RequestInterface $request, callable $next): Response
+    public function handle(RequestInterface $request, callable $next): ResponseInterface
     {
         $authorization = $request->header('authorization', '');
 
@@ -67,7 +68,7 @@ final readonly class AuthMiddleware implements MiddlewareInterface
             return new Response('Unauthorized', 401);
         }
 
-        /** @var Response */
+        /** @var ResponseInterface */
         return $next($request);
     }
 }

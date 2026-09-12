@@ -56,6 +56,7 @@ final class AuthMiddlewareTest extends TestCase
         );
 
         $this->assertSame(401, $response->status());
+        self::assertInstanceOf(Response::class, $response);
         $this->assertSame('Unauthorized', $response->body());
     }
 
@@ -87,6 +88,7 @@ final class AuthMiddlewareTest extends TestCase
         );
 
         $this->assertSame(200, $response->status());
+        self::assertInstanceOf(Response::class, $response);
         $this->assertSame('ok', $response->body());
     }
 

@@ -12,6 +12,7 @@ use EzPhp\Auth\UserProviderInterface;
 use EzPhp\Contracts\MiddlewareInterface;
 use EzPhp\Http\RequestInterface;
 use EzPhp\Http\Response;
+use EzPhp\Http\ResponseInterface;
 
 /**
  * Class JwtMiddleware
@@ -48,9 +49,9 @@ final readonly class JwtMiddleware implements MiddlewareInterface
      * @param RequestInterface $request
      * @param callable         $next
      *
-     * @return Response
+     * @return ResponseInterface
      */
-    public function handle(RequestInterface $request, callable $next): Response
+    public function handle(RequestInterface $request, callable $next): ResponseInterface
     {
         $authorization = $request->header('authorization', '');
 
@@ -82,7 +83,7 @@ final readonly class JwtMiddleware implements MiddlewareInterface
             Auth::login($user);
         }
 
-        /** @var Response */
+        /** @var ResponseInterface */
         return $next($request);
     }
 }
