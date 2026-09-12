@@ -56,8 +56,11 @@ final class JwtServiceProvider extends ServiceProvider
             if ($cache === null) {
                 // Fallback: ArrayDriver with no-op TTL behaviour so injection does not
                 // throw. Tokens added to this blacklist survive only for the current
-                // process and are not shared across requests.
-                $cache = new \EzPhp\Cache\ArrayDriver();
+                // process and are not shared across requests. Resolved through the
+                // container (not `new`-ed directly) so a future rebinding of
+                // ArrayDriver::class in ez-php/cache is picked up automatically
+                // instead of auth silently depending on today's constructor shape.
+                $cache = $app->make(\EzPhp\Cache\ArrayDriver::class);
             }
 
             return new JwtBlacklist($cache);
