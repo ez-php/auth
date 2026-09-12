@@ -21,9 +21,9 @@ use PHPUnit\Framework\Attributes\UsesClass;
  *
  * @package Tests
  */
+// Database is outside this module's <source> include, so #[UsesClass] on it is rejected as an invalid coverage target.
 #[CoversClass(PersonalAccessTokenManager::class)]
 #[UsesClass(PersonalAccessToken::class)]
-#[UsesClass(Database::class)]
 final class PersonalAccessTokenManagerTest extends TestCase
 {
     private Database $db;
