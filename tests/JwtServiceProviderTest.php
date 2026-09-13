@@ -24,7 +24,6 @@ use Tests\ApplicationTestCase;
 #[CoversClass(JwtServiceProvider::class)]
 #[UsesClass(JwtManager::class)]
 #[UsesClass(JwtBlacklist::class)]
-#[UsesClass(ArrayDriver::class)]
 final class JwtServiceProviderTest extends ApplicationTestCase
 {
     /**
