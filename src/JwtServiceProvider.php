@@ -9,7 +9,6 @@ use EzPhp\Auth\Jwt\JwtManager;
 use EzPhp\Cache\CacheInterface;
 use EzPhp\Contracts\ContainerInterface;
 use EzPhp\Contracts\ServiceProvider;
-use Throwable;
 
 /**
  * Class JwtServiceProvider
@@ -18,13 +17,16 @@ use Throwable;
  *
  * Bindings registered:
  *   - JwtManager   — reads JWT_SECRET and JWT_TTL from the environment.
- *   - JwtBlacklist — wraps CacheInterface; skipped silently if CacheInterface is not bound.
+ *   - JwtBlacklist — wraps CacheInterface; resolving it requires CacheInterface to be bound.
  *
  * Environment variables:
  *   JWT_SECRET  — HMAC-HS256 signing secret (required; no default).
  *   JWT_TTL     — Token lifetime in seconds (optional; default: 3600).
  *
- * Register this provider after CacheServiceProvider when logout blacklisting is required.
+ * Register CacheServiceProvider before this provider — JwtBlacklist depends on
+ * CacheInterface directly (no fallback), so it is only actually constructed when
+ * something resolves JwtBlacklist::class (e.g. wiring it into JwtMiddleware).
+ * Applications that never use logout blacklisting never trigger this dependency.
  *
  * @package EzPhp\Auth
  */
@@ -42,29 +44,10 @@ final class JwtServiceProvider extends ServiceProvider
             return new JwtManager(secret: $secret, ttl: $ttl);
         });
 
-        $this->app->bind(JwtBlacklist::class, function (ContainerInterface $app): JwtBlacklist {
-            $cache = null;
-
-            try {
-                $cache = $app->make(CacheInterface::class);
-            } catch (Throwable) {
-                // CacheInterface not bound — JwtBlacklist will still be constructed
-                // but cannot actually blacklist tokens. Applications that require
-                // logout support must register CacheServiceProvider before JwtServiceProvider.
-            }
-
-            if ($cache === null) {
-                // Fallback: ArrayDriver with no-op TTL behaviour so injection does not
-                // throw. Tokens added to this blacklist survive only for the current
-                // process and are not shared across requests. Resolved through the
-                // container (not `new`-ed directly) so a future rebinding of
-                // ArrayDriver::class in ez-php/cache is picked up automatically
-                // instead of auth silently depending on today's constructor shape.
-                $cache = $app->make(\EzPhp\Cache\ArrayDriver::class);
-            }
-
-            return new JwtBlacklist($cache);
-        });
+        $this->app->bind(
+            JwtBlacklist::class,
+            fn (ContainerInterface $app): JwtBlacklist => new JwtBlacklist($app->make(CacheInterface::class)),
+        );
     }
 
     /**

@@ -54,7 +54,7 @@ composer test-classes:check  # duplicate test class names only
 - One responsibility per class — keep classes small and focused
 - Constructor injection — no service locator pattern
 - No global state unless intentional and documented
-- Concrete classes are `final` — extend behavior through composition, not inheritance. Exception-hierarchy base classes (e.g. `EzPhpException`, `HttpException`, `CacheException`) are the one carve-out, since they exist specifically to be extended.
+- Concrete classes are `final` — extend behavior through composition, not inheritance. Exception-hierarchy base classes (e.g. `EzPhpException`, `HttpException`, `CacheException`) are one carve-out, since they exist specifically to be extended. A documented template-method-style base class (e.g. `Mailable`, meant to be configured via constructor-time subclassing) is the other — the owning module's `CLAUDE.md` must record it under Design Decisions.
 
 **Naming:**
 
@@ -347,6 +347,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 ## Design Decisions and Constraints
 
 - **Static façade with a managed singleton** — `Auth` uses a static instance so controllers can call `Auth::user()` without injecting the object. The singleton is set explicitly by `AuthServiceProvider`, not through `static::` magic, so it can be replaced in tests via `Auth::setInstance()`.
+- **`Auth` is intentionally exempt from the thin-delegation façade pattern used by `Cache`/`Mail`/`Flag`/`Metrics`/`Ai`/`RateLimiter`/`Storage`.** Those façades delegate every call to one injected interface instance. `Auth` cannot follow that shape because it supports **named guards** (`Auth::guard('api')`): each guard is an independent, stateful `Auth` instance holding its own `$currentUser`, so the state and the authentication logic (`attemptLogin()`, `loginUserWithRemember()`, `checkRememberToken()`, session mutation) have to live on the same class the guard registry holds — there is no single shared service to delegate to. Splitting the logic into a separate `AuthManager` would just move the same per-guard state one level down without removing it, at the cost of an extra indirection layer. The static-state trade-off this implies under concurrent runtimes is already covered above in the class's own "Async / concurrent runtime warning" docblock.
 - **No session management** — This module reads from and writes to an already-active PHP session (`session_status() === PHP_SESSION_ACTIVE`) but never calls `session_start()` or `session_destroy()`. Starting/destroying sessions is the application's responsibility (e.g. via a session middleware).
 - **Password hashing as thin wrappers** — `Auth::hashPassword()` and `Auth::verifyPassword()` are pure delegates to PHP's `password_hash()` / `password_verify()`. They live here so callers never import raw PHP functions in application code, but carry no state and no algorithm logic of their own.
 - **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
