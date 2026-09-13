@@ -239,16 +239,16 @@
         },
         {
             "name": "ez-php/rate-limiter",
-            "version": "1.13.1",
+            "version": "1.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ez-php/rate-limiter.git",
-                "reference": "8801c3823adf4ae0f546020e14ea375fe9cdf6ec"
+                "reference": "fa7d94b218f74fde2adab60e97decd7eb6941494"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ez-php/rate-limiter/zipball/8801c3823adf4ae0f546020e14ea375fe9cdf6ec",
-                "reference": "8801c3823adf4ae0f546020e14ea375fe9cdf6ec",
+                "url": "https://api.github.com/repos/ez-php/rate-limiter/zipball/fa7d94b218f74fde2adab60e97decd7eb6941494",
+                "reference": "fa7d94b218f74fde2adab60e97decd7eb6941494",
                 "shasum": ""
             },
             "require": {
@@ -296,7 +296,7 @@
                 "issues": "https://github.com/ez-php/rate-limiter/issues",
                 "source": "https://github.com/ez-php/rate-limiter"
             },
-            "time": "2026-09-12T18:02:26+00:00"
+            "time": "2026-09-13T00:31:04+00:00"
         }
     ],
     "packages-dev": [
@@ -979,16 +979,16 @@
         },
         {
             "name": "ez-php/testing",
-            "version": "1.13.1",
+            "version": "1.14.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/ez-php/testing.git",
-                "reference": "165dc37309a1a2035b49c6130f3fb7f2af3e9d55"
+                "reference": "52764cb5a203b8d225b492cf74e7059de1132489"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/ez-php/testing/zipball/165dc37309a1a2035b49c6130f3fb7f2af3e9d55",
-                "reference": "165dc37309a1a2035b49c6130f3fb7f2af3e9d55",
+                "url": "https://api.github.com/repos/ez-php/testing/zipball/52764cb5a203b8d225b492cf74e7059de1132489",
+                "reference": "52764cb5a203b8d225b492cf74e7059de1132489",
                 "shasum": ""
             },
             "require": {
@@ -1035,7 +1035,7 @@
                 "issues": "https://github.com/ez-php/testing/issues",
                 "source": "https://github.com/ez-php/testing"
             },
-            "time": "2026-09-12T18:02:28+00:00"
+            "time": "2026-09-13T00:31:08+00:00"
         },
         {
             "name": "ez-php/testing-application",
