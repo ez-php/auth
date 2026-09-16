@@ -77,6 +77,36 @@ $claims   = $jwt->validate($token);
 $router->get('/api/me', $handler)->middleware(\EzPhp\Auth\Middleware\JwtMiddleware::class);
 ```
 
+### Rate-limited login attempts
+
+Login-attempt throttling is not part of this module (see "What Does NOT Belong Here") —
+compose `ez-php/rate-limiter`'s `ThrottleMiddleware` in front of your login route instead.
+Since `ThrottleMiddleware` needs route-specific constructor arguments (limiter, attempt
+count, window, key), bind a small dedicated subclass so the container can autowire it like
+any other middleware class-string:
+
+```php
+use EzPhp\RateLimiter\Middleware\ThrottleMiddleware;
+use EzPhp\RateLimiter\RateLimiterInterface;
+
+final class LoginThrottleMiddleware extends ThrottleMiddleware
+{
+    public function __construct(RateLimiterInterface $limiter)
+    {
+        // 5 attempts per 10 minutes, keyed 'rate_limit:login:<ip>' — independent
+        // of any other ThrottleMiddleware instance guarding other routes.
+        parent::__construct($limiter, maxAttempts: 5, decaySeconds: 600, keyPrefix: 'rate_limit:login');
+    }
+}
+
+$router->post('/login', $handler)
+    ->middleware(LoginThrottleMiddleware::class) // runs first — throttled requests never reach AuthMiddleware
+    ->middleware(AuthMiddleware::class);
+```
+
+`Auth`'s static-façade design is untouched by this — the throttle lives entirely in the
+middleware chain in front of it.
+
 ### Personal access tokens
 
 ```php

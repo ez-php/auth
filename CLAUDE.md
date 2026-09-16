@@ -501,6 +501,6 @@ Registration: `$app->registerCommand(TokenCommand::class)` before bootstrap (sam
 | OAuth / SSO flows | Application layer |
 | OAuth / SSO flows | Application layer |
 | User model / database schema | Application code implementing `UserInterface` |
-| Rate limiting login attempts | `ez-php/rate-limiter` |
+| Rate limiting login attempts | `ez-php/rate-limiter` — see README.md "Rate-limited login attempts" for the recipe (a small `ThrottleMiddleware` subclass wired ahead of `AuthMiddleware`) |
 | HTTP Request / Response | `ez-php/http` |
 | Middleware infrastructure | `ez-php/framework` (`MiddlewareInterface`) |
