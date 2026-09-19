@@ -263,7 +263,8 @@ src/
 ├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
 ├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired
 ├── Console/
-│   └── TokenCommand.php          — auth:token command: generates a token for a user, prints raw token once
+│   ├── TokenCommand.php          — auth:token command: generates a token for a user, prints raw token once
+│   └── AuthScaffoldCommand.php   — auth:scaffold command: writes an example login/register/logout controller + routes file into the application
 ├── Jwt/
 │   ├── JwtException.php          — Thrown on invalid/expired/malformed JWT
 │   ├── JwtManager.php            — Issues and validates HMAC-HS256 JWTs; claims: sub, iat, exp
@@ -284,6 +285,8 @@ tests/
 ├── Jwt/
 │   ├── JwtManagerTest.php        — Covers JwtManager: issue, validate, expiry, signature, tampered payload
 │   └── JwtBlacklistTest.php      — Covers JwtBlacklist: add, isBlacklisted, SHA-256 keying, custom prefix
+├── Console/
+│   └── AuthScaffoldCommandTest.php — Covers AuthScaffoldCommand: writes controller + routes, refuses to overwrite, stub content
 └── Middleware/
     ├── AuthMiddlewareTest.php     — Covers AuthMiddleware: missing header, invalid token, static list, provider mode
     └── JwtMiddlewareTest.php      — Covers JwtMiddleware: missing header, invalid/expired/blacklisted token, user resolution
@@ -489,6 +492,20 @@ ez auth:token <user_id> <name> [--abilities=read,write] [--expires=3600]
 ```
 
 Registration: `$app->registerCommand(TokenCommand::class)` before bootstrap (same pattern as `WorkCommand`).
+
+---
+
+### AuthScaffoldCommand (`src/Console/AuthScaffoldCommand.php`)
+
+Console command `auth:scaffold`. Writes `app/Controllers/AuthController.php` (login/register/logout actions built on the `Auth` facade) and `routes/auth.php` (the matching route definitions) into the application. Refuses to run if `AuthController.php` already exists — never overwrites application code.
+
+```
+ez auth:scaffold
+```
+
+Registration: `$app->registerCommand(AuthScaffoldCommand::class)` before bootstrap (same pattern as `TokenCommand`).
+
+Not a complete user-management system — the generated controller's `findUserByEmail()`/`createUser()` stubs throw `RuntimeException` until the application replaces them with real lookups/persistence, since `ez-php/auth` has no user model or schema of its own to generate against.
 
 ---
 

@@ -107,6 +107,36 @@ $router->post('/login', $handler)
 `Auth`'s static-façade design is untouched by this — the throttle lives entirely in the
 middleware chain in front of it.
 
+### Example login/register scaffold
+
+`auth:scaffold` writes a starting-point login/register/logout controller and routes file:
+
+```bash
+php ez auth:scaffold
+```
+
+Creates:
+
+- `app/Controllers/AuthController.php` — `login()`/`register()`/`logout()` built on `Auth::login()`/`hashPassword()`/`verifyPassword()`
+- `routes/auth.php` — the matching `POST /login`, `POST /register`, `POST /logout` routes
+
+Require the routes file from `routes/web.php` to activate it:
+
+```php
+require __DIR__ . '/auth.php';
+```
+
+Refuses to run if `AuthController.php` already exists. Not a complete user-management system —
+`findUserByEmail()`/`createUser()` in the generated controller throw `RuntimeException` until
+you replace them with your application's actual user lookup/persistence; `ez-php/auth` has no
+user model or schema to generate those against.
+
+Register the command before bootstrap, same as `auth:token`:
+
+```php
+$app->registerCommand(\EzPhp\Auth\Console\AuthScaffoldCommand::class);
+```
+
 ### Personal access tokens
 
 ```php
@@ -147,6 +177,7 @@ php ez auth:token <user_id> <name> [--abilities=read,write] [--expires=3600]
 | `JwtBlacklist` | Cache-backed token blacklist (SHA-256 keyed) |
 | `JwtServiceProvider` | Registers `JwtManager` and `JwtBlacklist` |
 | `Console\TokenCommand` | `auth:token` CLI command |
+| `Console\AuthScaffoldCommand` | `auth:scaffold` CLI command — example login/register controller + routes |
 
 ## License
 
