@@ -387,6 +387,8 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 - **JWT is HMAC-HS256 only** — No RS256 or other asymmetric algorithms. The signing key (`JWT_SECRET`) must never be exposed to clients. Changing the secret invalidates all active tokens immediately.
 
 ---
+- **`ez-php/cache` and `ez-php/rate-limiter` are hard `require`s even though their use is optional at runtime.** `JwtBlacklist` needs a `CacheInterface`, and `Auth`'s login-throttling argument is typed `?RateLimiterInterface` (`Auth.php`) and may be `null`. The packages stay in `require` so the type declarations always resolve and `JwtServiceProvider` works out of the box; an application that never uses JWT blacklisting or throttling simply never binds them. Moving them to `suggest` would require a `class_exists` guard around every use and a lock-file refresh, and was judged not worth it.
+
 
 ## Testing Approach
 
