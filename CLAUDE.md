@@ -516,9 +516,7 @@ Not a complete user-management system — the generated controller's `findUserBy
 | Concern | Where it belongs |
 |---|---|
 | Session lifecycle (start/destroy) | Application session middleware |
-| OAuth / credential flows beyond simple hashing | Application layer or future `ez-php/credentials` |
-| OAuth / SSO flows | Application layer |
-| OAuth / SSO flows | Application layer |
+| OAuth2 / SSO flows (authorization code, PKCE, token exchange) | `ez-php/oauth` |
 | User model / database schema | Application code implementing `UserInterface` |
 | Rate limiting login attempts | `ez-php/rate-limiter` — see README.md "Rate-limited login attempts" for the recipe (a small `ThrottleMiddleware` subclass wired ahead of `AuthMiddleware`) |
 | HTTP Request / Response | `ez-php/http` |
