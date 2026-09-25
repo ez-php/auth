@@ -11,7 +11,7 @@ use Throwable;
 /**
  * Class AuthServiceProvider
  *
- * Binds the Auth singleton and sets the static instance so that
+ * Binds the Auth singleton and, in boot(), sets the static instance so that
  * Auth::user() / Auth::check() / Auth::login() are available
  * without resolving from the container explicitly.
  *
@@ -37,10 +37,7 @@ final class AuthServiceProvider extends ServiceProvider
                 // without automatic user restoration is still available.
             }
 
-            $auth = new Auth($provider);
-            Auth::setInstance($auth);
-
-            return $auth;
+            return new Auth($provider);
         });
     }
 
@@ -49,7 +46,9 @@ final class AuthServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Auth is resolved lazily. The static instance is set the first time
-        // $app->make(Auth::class) or Auth::getInstance() is called.
+        // Point the static facade at the container-managed instance. Done here rather
+        // than in the binding closure so resolving Auth has no global side effect and
+        // Auth::user() / Auth::check() never fall back to a provider-less instance.
+        Auth::setInstance($this->app->make(Auth::class));
     }
 }
