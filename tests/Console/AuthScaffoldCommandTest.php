@@ -112,4 +112,29 @@ final class AuthScaffoldCommandTest extends TestCase
         $content = file_get_contents($this->basePath . '/app/Controllers/AuthController.php');
         $this->assertSame('// custom', $content);
     }
+
+    /**
+     * Regression: the documented `registerCommand(AuthScaffoldCommand::class)` failed
+     * because the container cannot autowire a required `string $basePath`.
+     *
+     * @return void
+     */
+    public function test_defaults_to_the_working_directory_so_it_can_be_registered_by_class(): void
+    {
+        $cwd = getcwd();
+        $this->assertIsString($cwd);
+        chdir($this->basePath);
+
+        try {
+            ob_start();
+            $exit = (new AuthScaffoldCommand())->handle([]);
+            ob_end_clean();
+        } finally {
+            chdir($cwd);
+        }
+
+        $this->assertSame(0, $exit);
+        $this->assertFileExists($this->basePath . '/app/Controllers/AuthController.php');
+        $this->assertFileExists($this->basePath . '/routes/auth.php');
+    }
 }

@@ -30,9 +30,12 @@ final readonly class AuthScaffoldCommand implements CommandInterface
     /**
      * AuthScaffoldCommand Constructor
      *
-     * @param string $basePath Application root (contains app/, routes/).
+     * @param string|null $basePath Application root (contains app/, routes/). Null (the
+     *                              default, used when registered by class name via
+     *                              `registerCommand()`) resolves to the working directory at
+     *                              run time — `php ez` runs from the project root.
      */
-    public function __construct(private string $basePath)
+    public function __construct(private ?string $basePath = null)
     {
     }
 
@@ -72,8 +75,9 @@ final readonly class AuthScaffoldCommand implements CommandInterface
      */
     public function handle(array $args): int
     {
-        $controllerPath = $this->basePath . '/app/Controllers/AuthController.php';
-        $routesPath = $this->basePath . '/routes/auth.php';
+        $basePath = $this->basePath ?? (getcwd() ?: '.');
+        $controllerPath = $basePath . '/app/Controllers/AuthController.php';
+        $routesPath = $basePath . '/routes/auth.php';
 
         if (file_exists($controllerPath)) {
             fwrite(STDERR, "AuthController already exists: app/Controllers/AuthController.php\n");
