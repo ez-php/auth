@@ -888,6 +888,50 @@ final class AuthTest extends TestCase
     /**
      * @return void
      */
+    public function test_logout_regenerates_session_id(): void
+    {
+        $auth = new Auth();
+        Auth::setInstance($auth);
+
+        session_start();
+        Auth::login($this->makeUser(5));
+        $loggedInId = session_id();
+
+        Auth::logout();
+        $loggedOutId = session_id();
+
+        session_destroy();
+
+        $this->assertNotSame('', $loggedOutId);
+        $this->assertNotSame($loggedInId, $loggedOutId);
+    }
+
+    /**
+     * @return void
+     */
+    public function test_logout_invalidates_remember_token(): void
+    {
+        $auth = new Auth();
+        Auth::setInstance($auth);
+
+        session_start();
+        $token = Auth::loginWithRemember($this->makeUser(1));
+
+        Auth::logout();
+
+        $valid = Auth::verifyRememberToken($token);
+        /** @var array<string, mixed> $snapshot */
+        $snapshot = $_SESSION;
+
+        session_destroy();
+
+        $this->assertFalse($valid);
+        $this->assertArrayNotHasKey('auth_remember_token', $snapshot);
+    }
+
+    /**
+     * @return void
+     */
     public function test_login_with_remember_stores_hash_in_session(): void
     {
         $auth = new Auth();

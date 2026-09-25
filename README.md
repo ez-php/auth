@@ -80,27 +80,18 @@ $router->get('/api/me', $handler)->middleware(\EzPhp\Auth\Middleware\JwtMiddlewa
 ### Rate-limited login attempts
 
 Login-attempt throttling is not part of this module (see "What Does NOT Belong Here") —
-compose `ez-php/rate-limiter`'s `ThrottleMiddleware` in front of your login route instead.
-Since `ThrottleMiddleware` needs route-specific constructor arguments (limiter, attempt
-count, window, key), bind a small dedicated subclass so the container can autowire it like
-any other middleware class-string:
+compose `ez-php/rate-limiter`'s `ThrottleMiddleware` in front of your login route instead,
+passing the route's limit as middleware parameters (`maxAttempts,decaySeconds[,bucket]`):
 
 ```php
 use EzPhp\RateLimiter\Middleware\ThrottleMiddleware;
-use EzPhp\RateLimiter\RateLimiterInterface;
 
-final class LoginThrottleMiddleware extends ThrottleMiddleware
-{
-    public function __construct(RateLimiterInterface $limiter)
-    {
-        // 5 attempts per 10 minutes, keyed 'rate_limit:login:<ip>' — independent
-        // of any other ThrottleMiddleware instance guarding other routes.
-        parent::__construct($limiter, maxAttempts: 5, decaySeconds: 600, keyPrefix: 'rate_limit:login');
-    }
-}
+$app->middlewareAlias('throttle', ThrottleMiddleware::class); // before bootstrap
 
+// 5 attempts per 10 minutes in the 'login' bucket, keyed per client IP — independent
+// of the throttle guarding any other route.
 $router->post('/login', $handler)
-    ->middleware(LoginThrottleMiddleware::class) // runs first — throttled requests never reach AuthMiddleware
+    ->middleware('throttle:5,600,login') // runs first — throttled requests never reach AuthMiddleware
     ->middleware(AuthMiddleware::class);
 ```
 
@@ -156,8 +147,17 @@ database/migrations/2024_01_01_000000_create_personal_access_tokens_table.php
 ### Console command
 
 ```bash
-# Generate a personal access token for a user
+# Generate a personal access token for a user (the raw token is printed once)
 php ez auth:token <user_id> <name> [--abilities=read,write] [--expires=3600]
+```
+
+`--abilities` defaults to `*` (all abilities); omit `--expires` for a token that never expires.
+
+The command is opt-in — `AuthServiceProvider` does not register it, since issuing tokens from
+the CLI should be a deliberate choice. Register it before bootstrap:
+
+```php
+$app->registerCommand(\EzPhp\Auth\Console\TokenCommand::class);
 ```
 
 ## Classes

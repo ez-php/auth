@@ -382,6 +382,12 @@ final class Auth
     /**
      * De-authenticate the current user on this guard instance.
      *
+     * When a session is active this method also:
+     *   - Removes the remember-me token hash, so a remember token issued
+     *     before logout no longer verifies.
+     *   - Regenerates the session ID, mirroring loginUser(), so the
+     *     authenticated session's ID is not reused after logout.
+     *
      * @return void
      */
     public function logoutUser(): void
@@ -389,7 +395,8 @@ final class Auth
         $this->currentUser = null;
 
         if (session_status() === PHP_SESSION_ACTIVE) {
-            unset($_SESSION['auth_id']);
+            unset($_SESSION['auth_id'], $_SESSION['auth_remember_token']);
+            session_regenerate_id(true);
         }
     }
 

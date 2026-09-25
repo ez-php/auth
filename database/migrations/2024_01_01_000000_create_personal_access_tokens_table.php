@@ -25,7 +25,9 @@ return new class () implements MigrationInterface {
             $table->string('user_id', 255);
             $table->string('name', 255);
             $table->string('token', 64)->unique();
-            $table->text('abilities')->default('*');
+            // No DEFAULT: MySQL rejects one on TEXT columns (error 1101), and
+            // PersonalAccessTokenManager::create() always writes `abilities`.
+            $table->text('abilities');
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('created_at');

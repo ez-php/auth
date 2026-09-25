@@ -64,11 +64,32 @@ final readonly class AuthMiddleware implements MiddlewareInterface
             }
 
             Auth::login($user);
-        } elseif ($this->validTokens !== [] && !in_array($token, $this->validTokens, true)) {
+        } elseif ($this->validTokens !== [] && !$this->isValidStaticToken($token)) {
             return new Response('Unauthorized', 401);
         }
 
         /** @var ResponseInterface */
         return $next($request);
+    }
+
+    /**
+     * Compare the presented token against every configured token in constant time.
+     *
+     * Every entry is checked (no early exit), so the response time does not reveal
+     * which token, or how much of one, matched.
+     *
+     * @param string $token
+     *
+     * @return bool
+     */
+    private function isValidStaticToken(string $token): bool
+    {
+        $matched = false;
+
+        foreach ($this->validTokens as $valid) {
+            $matched = hash_equals($valid, $token) || $matched;
+        }
+
+        return $matched;
     }
 }

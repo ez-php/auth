@@ -241,7 +241,7 @@ Only set a port for services the module actually uses. Modules without external 
 
 > The `MEILISEARCH_PORT` column is the **host** port. Inside a Compose network the service is always reachable at `http://meilisearch:7700` regardless of the host mapping — only publish-side ports need to be unique.
 
-> The "Redis host port" column is likewise the **host**-published port. `ez-php/cache`, `ez-php/queue`, and `ez-php/rate-limiter` map it through a separate `REDIS_HOST_PORT` env var in `docker-compose.yml`, keeping `REDIS_PORT` fixed at `6379` for in-container connections (the app container always reaches Redis at `redis:6379` over the Compose network, regardless of the host mapping) — the root project and the `ez-php/` application template are the two exceptions, since both have no host/container split and use `REDIS_PORT` for both (the template's other in-container Redis settings — `CACHE_REDIS_PORT`, `QUEUE_REDIS_PORT`, `RATE_LIMITER_REDIS_PORT` — stay fixed at `6379` regardless, same as every other module).
+> The "Redis host port" column is likewise the **host**-published port. `ez-php/cache`, `ez-php/queue`, and `ez-php/rate-limiter` map it through a separate `REDIS_HOST_PORT` env var in `docker-compose.yml`, keeping `REDIS_PORT` fixed at `6379` for in-container connections (the app container always reaches Redis at `redis:6379` over the Compose network, regardless of the host mapping) — the root project and the `ez-php/` application template are the two exceptions, since both have no host/container split and use `REDIS_PORT` for both (the template's other in-container Redis settings — `CACHE_REDIS_PORT`, `QUEUE_REDIS_PORT`, `RATE_LIMITER_REDIS_PORT`, `HEALTH_REDIS_PORT` — stay fixed at `6379` regardless, same as every other module).
 
 > This table tracks only MySQL, Redis, and Meilisearch ports — the three services shared across multiple modules where a collision is otherwise easy to introduce. Mailpit is the one other service with published host ports: SMTP `1025` and web UI `8025`. `ez-php/mail` maps them through `MAILPIT_SMTP_HOST_PORT`/`MAILPIT_API_HOST_PORT` in `modules/mail/docker-compose.yml` (mirroring the `*_HOST_PORT` pattern above, documented in `modules/mail/.env.example`); the root project and the `ez-php/` template each run their own Mailpit on the same defaults (`MAIL_PORT`/`MAIL_WEB_PORT`), so **these three stacks cannot run at the same time** without overriding those variables. It isn't a table column because no module beyond those three runs Mailpit — but a new module adding its own single-use service's ports should likewise parameterize them and document the defaults in its own `.env.example` rather than adding a column here.
 
@@ -296,6 +296,8 @@ tests/
 │   └── JwtBlacklistTest.php      — Covers JwtBlacklist: add, isBlacklisted, SHA-256 keying, custom prefix
 ├── Console/
 │   └── AuthScaffoldCommandTest.php — Covers AuthScaffoldCommand: writes controller + routes, refuses to overwrite, stub content
+├── Migration/
+│   └── AuthMigrationsMysqlTest.php — Runs every database/migrations/*.php up() and down() on MySQL; skipped without DB_HOST
 └── Middleware/
     ├── AuthMiddlewareTest.php     — Covers AuthMiddleware: missing header, invalid token, static list, provider mode
     └── JwtMiddlewareTest.php      — Covers JwtMiddleware: missing header, invalid/expired/blacklisted token, user resolution
@@ -315,7 +317,7 @@ Static façade backed by a managed singleton instance. Provides the public API c
 | `Auth::user()` | Returns the authenticated `UserInterface` or `null` |
 | `Auth::id()` | Returns `getAuthId()` of the current user or `null` |
 | `Auth::login($user)` | Sets the current user; persists `auth_id` to `$_SESSION` when a session is active |
-| `Auth::logout()` | Clears the current user; removes `auth_id` from `$_SESSION` when a session is active |
+| `Auth::logout()` | Clears the current user; when a session is active, removes `auth_id` and `auth_remember_token` from `$_SESSION` and regenerates the session ID (mirroring `login()`) |
 | `Auth::hashPassword($plain)` | Hashes a plain-text password via `password_hash()` with `PASSWORD_DEFAULT` (bcrypt) |
 | `Auth::verifyPassword($plain, $hash)` | Verifies a plain-text password against a stored hash via `password_verify()` |
 
@@ -372,7 +374,7 @@ Two modes:
 
 | Mode | How to configure | Behaviour |
 |---|---|---|
-| Static token list | `new AuthMiddleware(['secret-key'])` | Accepts any token in the list; no user is set |
+| Static token list | `new AuthMiddleware(['secret-key'])` | Accepts any token in the list (each compared with `hash_equals()`, no early exit); no user is set |
 | UserProvider | `new AuthMiddleware(userProvider: $provider)` | Calls `findByToken($token)`; calls `Auth::login($user)` on success |
 
 Returns `401 Unauthorized` when:
@@ -391,7 +393,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 - **No session management** — This module reads from and writes to an already-active PHP session (`session_status() === PHP_SESSION_ACTIVE`) but never calls `session_start()` or `session_destroy()`. Starting/destroying sessions is the application's responsibility (e.g. via a session middleware).
 - **Password hashing as thin wrappers** — `Auth::hashPassword()` and `Auth::verifyPassword()` are pure delegates to PHP's `password_hash()` / `password_verify()`. They live here so callers never import raw PHP functions in application code, but carry no state and no algorithm logic of their own.
 - **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
-- **`Auth::getInstance()` fails open (lazily creates a no-provider instance), unlike `Storage::getInstance()`/`Flag::getInstance()`-style facades, which fail closed (throw if unconfigured).** This is intentional, not an inconsistency: a no-provider `Auth` is a fully valid, supported state — `AuthMiddleware`'s static-token-list mode and password hashing (`Auth::hashPassword()`/`verifyPassword()`) never need a `UserProviderInterface` or `AuthServiceProvider` at all. `Storage`/`Flag` have no equivalent "valid unconfigured" mode — every one of their operations requires a concrete driver, so silently creating an unconfigured instance would just defer a guaranteed failure to a more confusing call site. Do not change `Auth::getInstance()` to throw: that would break the static-token-list-only usage this module explicitly supports.
+- **`Auth::getInstance()` fails open (lazily creates a no-provider instance), unlike façades such as `Storage::getInstance()` or `Flag` (whose calls go through a `FlagManager` set by `Flag::setManager()`), which fail closed (throw if unconfigured).** This is intentional, not an inconsistency: a no-provider `Auth` is a fully valid, supported state — `AuthMiddleware`'s static-token-list mode and password hashing (`Auth::hashPassword()`/`verifyPassword()`) never need a `UserProviderInterface` or `AuthServiceProvider` at all. `Storage`/`Flag` have no equivalent "valid unconfigured" mode — every one of their operations requires a concrete driver, so silently creating an unconfigured instance would just defer a guaranteed failure to a more confusing call site. Do not change `Auth::getInstance()` to throw: that would break the static-token-list-only usage this module explicitly supports.
 - **`AuthMiddleware` is `final`** — Extend behaviour by composing a new middleware that wraps or replaces it, not by subclassing.
 - **JWT is HMAC-HS256 only** — No RS256 or other asymmetric algorithms. The signing key (`JWT_SECRET`) must never be exposed to clients. Changing the secret invalidates all active tokens immediately.
 
@@ -402,7 +404,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 
 ## Testing Approach
 
-- **No external infrastructure required** — All tests run in-process. No database, no Redis, no real HTTP.
+- **No external infrastructure required, except one MySQL check** — All tests run in-process (no Redis, no real HTTP). `AuthMigrationsMysqlTest` runs the shipped migrations against MySQL (`DB_HOST`/`DB_TESTING_DATABASE`, same convention as `ez-php/orm`'s schema tests) because DDL mistakes only surface in the production dialect — a `DEFAULT` on the `TEXT` `abilities` column shipped unnoticed because no test ran the migration, and failed on MySQL (error 1101). It is skipped when `DB_HOST` is unset. It builds tables through `ez-php/orm`'s `Schema`, hence `ez-php/orm` in `require-dev` (and `suggest`, since applications need it to run the migration).
 - **Session tests** — A subset of `AuthTest` calls `session_start()` and `session_destroy()` to exercise session-backed login/logout and restoration. These are in-process PHP sessions and require no server.
 - **Always call `Auth::resetInstance()`** in `setUp()` and `tearDown()` of any test that exercises `Auth`. Forgetting this causes state to leak between tests.
 - **Inline anonymous classes** replace mocks for `UserInterface` and `UserProviderInterface` — keeps tests explicit and avoids mock framework noise.
@@ -528,6 +530,6 @@ Not a complete user-management system — the generated controller's `findUserBy
 | Session lifecycle (start/destroy) | Application session middleware |
 | OAuth2 / SSO flows (authorization code, PKCE, token exchange) | `ez-php/oauth` |
 | User model / database schema | Application code implementing `UserInterface` |
-| Rate limiting login attempts | `ez-php/rate-limiter` — see README.md "Rate-limited login attempts" for the recipe (a small `ThrottleMiddleware` subclass wired ahead of `AuthMiddleware`) |
+| Rate limiting login attempts | `ez-php/rate-limiter` — see README.md "Rate-limited login attempts" for the recipe (`'throttle:5,600,login'` wired ahead of `AuthMiddleware`) |
 | HTTP Request / Response | `ez-php/http` |
 | Middleware infrastructure | `ez-php/framework` (`MiddlewareInterface`) |

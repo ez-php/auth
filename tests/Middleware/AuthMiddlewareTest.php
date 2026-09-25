@@ -95,6 +95,38 @@ final class AuthMiddlewareTest extends TestCase
     /**
      * @return void
      */
+    public function test_any_configured_token_is_accepted_not_only_the_first(): void
+    {
+        $middleware = new AuthMiddleware(['first-token', 'second-token', 'third-token']);
+
+        foreach (['first-token', 'second-token', 'third-token'] as $token) {
+            $response = $middleware->handle(
+                new Request('GET', '/', headers: ['authorization' => 'Bearer ' . $token]),
+                fn (): Response => new Response('ok'),
+            );
+
+            $this->assertSame(200, $response->status(), $token);
+        }
+    }
+
+    /**
+     * @return void
+     */
+    public function test_prefix_of_a_configured_token_is_rejected(): void
+    {
+        $middleware = new AuthMiddleware(['secret-token']);
+
+        $response = $middleware->handle(
+            new Request('GET', '/', headers: ['authorization' => 'Bearer secret']),
+            fn (): Response => new Response('ok'),
+        );
+
+        $this->assertSame(401, $response->status());
+    }
+
+    /**
+     * @return void
+     */
     public function test_invalid_token_returns_401(): void
     {
         $middleware = new AuthMiddleware(['secret-token']);
