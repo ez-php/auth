@@ -34,9 +34,12 @@ final readonly class AuthScaffoldCommand implements CommandInterface
      *                              default, used when registered by class name via
      *                              `registerCommand()`) resolves to the working directory at
      *                              run time — `php ez` runs from the project root.
+     * @param resource|null $errorStream Where error messages go; null = STDERR (injectable for tests).
      */
-    public function __construct(private ?string $basePath = null)
-    {
+    public function __construct(
+        private ?string $basePath = null,
+        private mixed $errorStream = null,
+    ) {
     }
 
     /**
@@ -80,7 +83,7 @@ final readonly class AuthScaffoldCommand implements CommandInterface
         $routesPath = $basePath . '/routes/auth.php';
 
         if (file_exists($controllerPath)) {
-            fwrite(STDERR, "AuthController already exists: app/Controllers/AuthController.php\n");
+            fwrite($this->errorStream ?? STDERR, "AuthController already exists: app/Controllers/AuthController.php\n");
 
             return 1;
         }
@@ -88,7 +91,7 @@ final readonly class AuthScaffoldCommand implements CommandInterface
         $controllerDir = dirname($controllerPath);
 
         if (!is_dir($controllerDir) && !mkdir($controllerDir, 0o755, true) && !is_dir($controllerDir)) {
-            fwrite(STDERR, "Could not create directory: $controllerDir\n");
+            fwrite($this->errorStream ?? STDERR, "Could not create directory: $controllerDir\n");
 
             return 1;
         }
@@ -96,19 +99,19 @@ final readonly class AuthScaffoldCommand implements CommandInterface
         $routesDir = dirname($routesPath);
 
         if (!is_dir($routesDir) && !mkdir($routesDir, 0o755, true) && !is_dir($routesDir)) {
-            fwrite(STDERR, "Could not create directory: $routesDir\n");
+            fwrite($this->errorStream ?? STDERR, "Could not create directory: $routesDir\n");
 
             return 1;
         }
 
         if (file_put_contents($controllerPath, $this->controllerStub()) === false) {
-            fwrite(STDERR, "Failed to write: app/Controllers/AuthController.php\n");
+            fwrite($this->errorStream ?? STDERR, "Failed to write: app/Controllers/AuthController.php\n");
 
             return 1;
         }
 
         if (file_put_contents($routesPath, $this->routesStub()) === false) {
-            fwrite(STDERR, "Failed to write: routes/auth.php\n");
+            fwrite($this->errorStream ?? STDERR, "Failed to write: routes/auth.php\n");
 
             return 1;
         }

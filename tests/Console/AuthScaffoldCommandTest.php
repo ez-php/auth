@@ -50,7 +50,7 @@ final class AuthScaffoldCommandTest extends TestCase
 
     public function test_name_description_help(): void
     {
-        $command = new AuthScaffoldCommand($this->basePath);
+        $command = new AuthScaffoldCommand($this->basePath, errorStream: fopen('php://memory', 'w') ?: null);
 
         $this->assertSame('auth:scaffold', $command->getName());
         $this->assertNotEmpty($command->getDescription());
@@ -59,7 +59,7 @@ final class AuthScaffoldCommandTest extends TestCase
 
     public function test_handle_writes_controller_and_routes_file(): void
     {
-        $command = new AuthScaffoldCommand($this->basePath);
+        $command = new AuthScaffoldCommand($this->basePath, errorStream: fopen('php://memory', 'w') ?: null);
 
         ob_start();
         $code = $command->handle([]);
@@ -72,7 +72,7 @@ final class AuthScaffoldCommandTest extends TestCase
 
     public function test_controller_stub_uses_auth_facade(): void
     {
-        $command = new AuthScaffoldCommand($this->basePath);
+        $command = new AuthScaffoldCommand($this->basePath, errorStream: fopen('php://memory', 'w') ?: null);
 
         ob_start();
         $command->handle([]);
@@ -87,7 +87,7 @@ final class AuthScaffoldCommandTest extends TestCase
 
     public function test_routes_stub_references_auth_controller(): void
     {
-        $command = new AuthScaffoldCommand($this->basePath);
+        $command = new AuthScaffoldCommand($this->basePath, errorStream: fopen('php://memory', 'w') ?: null);
 
         ob_start();
         $command->handle([]);
@@ -102,7 +102,7 @@ final class AuthScaffoldCommandTest extends TestCase
     {
         file_put_contents($this->basePath . '/app/Controllers/AuthController.php', '// custom');
 
-        $command = new AuthScaffoldCommand($this->basePath);
+        $command = new AuthScaffoldCommand($this->basePath, errorStream: fopen('php://memory', 'w') ?: null);
 
         ob_start();
         $code = $command->handle([]);
@@ -127,7 +127,7 @@ final class AuthScaffoldCommandTest extends TestCase
 
         try {
             ob_start();
-            $exit = (new AuthScaffoldCommand())->handle([]);
+            $exit = (new AuthScaffoldCommand(errorStream: fopen('php://memory', 'w') ?: null))->handle([]);
             ob_end_clean();
         } finally {
             chdir($cwd);
