@@ -206,4 +206,86 @@ final class PersonalAccessTokenManagerTest extends TestCase
 
         $this->assertSame(0, $this->manager->pruneExpired());
     }
+
+    // ─── One-time tokens ──────────────────────────────────────────────────────
+
+    public function test_issue_one_time_then_consume_once(): void
+    {
+        $raw = $this->manager->issueOneTime(7, 'password-reset', 3600);
+
+        $token = $this->manager->consume($raw, 'password-reset');
+
+        $this->assertNotNull($token);
+        $this->assertSame('7', (string) $token->userId);
+        $this->assertNull($this->manager->consume($raw, 'password-reset'), 'a one-time token works once');
+    }
+
+    public function test_consume_requires_the_matching_ability(): void
+    {
+        $raw = $this->manager->issueOneTime(7, 'verify-email', 3600);
+
+        $this->assertNull($this->manager->consume($raw, 'password-reset'));
+        // A failed attempt for the wrong purpose does not burn the token.
+        $this->assertNotNull($this->manager->consume($raw, 'verify-email'));
+    }
+
+    public function test_consume_rejects_an_expired_token_and_removes_it(): void
+    {
+        $raw = $this->manager->issueOneTime(7, 'password-reset', 3600);
+        $this->db->execute("UPDATE personal_access_tokens SET expires_at = '2000-01-01 00:00:00'");
+
+        $this->assertNull($this->manager->consume($raw, 'password-reset'));
+        $this->assertSame([], $this->db->query('SELECT id FROM personal_access_tokens'));
+    }
+
+    public function test_a_regular_wildcard_token_cannot_be_consumed(): void
+    {
+        [$raw] = $this->manager->create(7, 'API', ['*']);
+
+        $this->assertNull($this->manager->consume($raw, 'password-reset'));
+        $this->assertNotNull($this->manager->find($raw), 'the API token is left alone');
+    }
+
+    public function test_issuing_again_revokes_the_previous_token_for_that_user_and_ability(): void
+    {
+        $first = $this->manager->issueOneTime(7, 'password-reset', 3600);
+        $otherAbility = $this->manager->issueOneTime(7, 'verify-email', 3600);
+        $otherUser = $this->manager->issueOneTime(8, 'password-reset', 3600);
+        $second = $this->manager->issueOneTime(7, 'password-reset', 3600);
+
+        $this->assertNull($this->manager->consume($first, 'password-reset'));
+        $this->assertNotNull($this->manager->consume($second, 'password-reset'));
+        $this->assertNotNull($this->manager->consume($otherAbility, 'verify-email'));
+        $this->assertNotNull($this->manager->consume($otherUser, 'password-reset'));
+    }
+
+    public function test_revoke_for_removes_only_that_users_one_time_tokens_of_that_ability(): void
+    {
+        $reset = $this->manager->issueOneTime(7, 'password-reset', 3600);
+        $verify = $this->manager->issueOneTime(7, 'verify-email', 3600);
+        [$api] = $this->manager->create(7, 'API', ['password-reset']);
+
+        $this->assertSame(1, $this->manager->revokeFor(7, 'password-reset'));
+
+        $this->assertNull($this->manager->consume($reset, 'password-reset'));
+        $this->assertNotNull($this->manager->consume($verify, 'verify-email'));
+        $this->assertNotNull($this->manager->find($api));
+    }
+
+    public function test_consume_does_not_touch_last_used_at(): void
+    {
+        $raw = $this->manager->issueOneTime(7, 'verify-email', 3600);
+        $this->manager->consume($raw, 'wrong');
+
+        $rows = $this->db->query('SELECT last_used_at FROM personal_access_tokens');
+        $this->assertNull($rows[0]['last_used_at']);
+    }
+
+    public function test_a_one_time_token_never_authenticates_through_find(): void
+    {
+        $raw = $this->manager->issueOneTime(7, 'password-reset', 3600);
+
+        $this->assertNull($this->manager->find($raw));
+        $this->assertNotNull($this->manager->consume($raw, 'password-reset'), 'find() did not burn it');
+    }
 }

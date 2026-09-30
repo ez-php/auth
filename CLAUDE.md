@@ -28,10 +28,11 @@ docker compose exec app composer full
 Executes in order:
 1. `sync_guidelines.php --check` — fails if any `CLAUDE.md` has drifted from this file
 2. `check_test_classes.php` — fails on a duplicate test class name (all packages share the `Tests\` namespace, so a collision is a fatal error in the aggregated run, not a test failure)
-3. `phpstan analyse` — static analysis, level 9, config: `phpstan.neon`
-4. `php-cs-fixer fix` — auto-fixes style (`@PSR12` + `@PHP83Migration` + strict rules)
+3. `check_module_deps.php` — fails when a package's code imports an ez-php package its `composer.json` does not declare (module `src`: `require`/`suggest`; tests: `require`/`require-dev` and their dependencies), or requires one it never uses
+4. `phpstan analyse` — static analysis, level 9, config: `phpstan.neon`
+5. `php-cs-fixer fix` — auto-fixes style (`@PSR12` + `@PHP83Migration` + strict rules)
    *(Note: `@PHP85Migration` does not exist yet in php-cs-fixer; `@PHP83Migration` is the highest available and is used intentionally even though the project targets PHP 8.5)*
-5. `phpunit` — all tests with coverage
+6. `phpunit` — all tests with coverage
 
 Individual commands when needed:
 ```
@@ -40,6 +41,7 @@ composer cs                  # CS Fixer only
 composer test                # PHPUnit only
 composer guidelines:check    # CLAUDE.md drift only
 composer test-classes:check  # duplicate test class names only
+composer module-deps:check   # undeclared / unused ez-php package dependencies only
 ```
 
 **PHPStan:** never suppress with `@phpstan-ignore-line` — always fix the root cause.
@@ -198,20 +200,22 @@ vendor/bin/docker-init
 
 This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders. Existing files are never overwritten.
 
-Pass `--services` to merge MySQL/Redis/Meilisearch service definitions directly into `docker-compose.yml` and uncomment the matching sections in `.env.example`, instead of adapting them by hand afterward:
+Pass `--services` to merge MySQL/Redis/Meilisearch/Memcached/Mailpit service definitions directly into `docker-compose.yml` and uncomment the matching sections in `.env.example`, instead of adapting them by hand afterward:
 
 ```
 vendor/bin/docker-init --services=mysql
 vendor/bin/docker-init --services=redis
 vendor/bin/docker-init --services=meilisearch
 vendor/bin/docker-init --services=mysql,redis
+vendor/bin/docker-init --services=memcached,mailpit
 ```
 
-Pass `--extensions` to merge PHP extension install blocks (apt packages plus `docker-php-ext-install`/`pecl` lines) directly into `docker/app/Dockerfile`, instead of hand-editing it afterward — supported extensions: `bcmath`, `gmp`, `gd`, `imagick`:
+Pass `--extensions` to merge PHP extension install blocks (apt packages plus `docker-php-ext-install`/`pecl` lines) directly into `docker/app/Dockerfile`, instead of hand-editing it afterward — supported extensions: `bcmath`, `gmp`, `gd`, `imagick`, `memcached`, `apcu` (with `apc.enable_cli=1`):
 
 ```
 vendor/bin/docker-init --extensions=gmp,bcmath
 vendor/bin/docker-init --extensions=gd,imagick
+vendor/bin/docker-init --extensions=memcached,apcu
 ```
 
 When run from a module directory inside this monorepo, any requested extension not already present is also merged into the shared root `docker/app/Dockerfile` — the container `composer full` at the root actually runs against, distinct from the module's own standalone image.
@@ -274,7 +278,7 @@ src/
 ├── UserProviderInterface.php      — Contract for user lookup by ID or Bearer token
 ├── AuthorizableInterface.php      — Optional contract for policy-style authorization: can(ability, subject): bool
 ├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
-├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired
+├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired; one-time tokens: issueOneTime, consume, revokeFor
 ├── Console/
 │   ├── TokenCommand.php          — auth:token command: generates a token for a user, prints raw token once
 │   └── AuthScaffoldCommand.php   — auth:scaffold command: writes an example login/register/logout controller + routes file into the application
@@ -424,6 +428,7 @@ Issues and validates stateless HMAC-HS256 JSON Web Tokens.
 |---|---|
 | `issue(int\|string $sub): string` | Creates a signed JWT with claims `sub`, `iat`, `exp` |
 | `validate(string $token): array<string, mixed>` | Verifies structure, algorithm, signature, and expiry; throws `JwtException` on failure |
+| `ttl(): int` | The configured token lifetime in seconds (for `expires_in` in token responses) |
 
 **Token format:** `base64url(header).base64url(payload).base64url(HMAC-SHA256-signature)`
 
@@ -492,10 +497,15 @@ Manages token storage using `DatabaseInterface`. Works with the `personal_access
 | Method | Behaviour |
 |---|---|
 | `create(userId, name, abilities, expiresIn?)` | Generates raw token + hash, inserts row, returns `[rawToken, PersonalAccessToken]` |
-| `find(rawToken)` | Hashes the raw token, looks up the row, touches `last_used_at`, returns null if missing or expired |
+| `find(rawToken)` | Hashes the raw token, looks up the row, touches `last_used_at`, returns null if missing, expired, or a one-time token |
 | `revoke(id)` | Deletes the token row by ID |
 | `rotate(id)` | Revokes the old token and creates a new one with identical name/abilities/remaining TTL |
 | `pruneExpired()` | Deletes all rows where `expires_at < now`; returns the row count |
+| `issueOneTime(userId, ability, ttl)` | Revokes the user's earlier one-time tokens for `ability`, creates one named `one-time:<ability>` with exactly `[ability]`, returns the raw token |
+| `consume(rawToken, ability)` | Redeems a one-time token for `ability`: deletes it and returns it only if that `DELETE` removed the row, it was not expired and carries exactly `[ability]`; a token for another ability is left intact; never touches `last_used_at` |
+| `revokeFor(userId, ability)` | Deletes that user's one-time tokens for `ability`; regular tokens are untouched |
+
+**One-time tokens** (e-mail verification, password reset) share the table but are marked by the `one-time:` name prefix. `find()` rejects them, so a reset link can never be used as a Bearer token, and `consume()` accepts nothing else, so a long-lived `*` API token can never pass as a reset token. Redemption is the `DELETE` itself: of two concurrent `consume()` calls only the one whose delete affects the row succeeds.
 
 Token format: `bin2hex(random_bytes(40))` — 80 hex characters. SHA-256 hash stored in the `token` column.
 

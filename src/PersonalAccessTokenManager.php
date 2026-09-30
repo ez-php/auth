@@ -25,6 +25,11 @@ final class PersonalAccessTokenManager
     private const string TABLE = 'personal_access_tokens';
 
     /**
+     * Name prefix marking tokens from issueOneTime(); consume() accepts only these.
+     */
+    public const string ONE_TIME_PREFIX = 'one-time:';
+
+    /**
      * PersonalAccessTokenManager Constructor
      *
      * @param DatabaseInterface $db
@@ -93,7 +98,8 @@ final class PersonalAccessTokenManager
     /**
      * Find a token record by its raw (unhashed) value.
      *
-     * Returns null when the token does not exist or has expired.
+     * Returns null when the token does not exist, has expired, or is a one-time
+     * token from issueOneTime().
      *
      * @param string $rawToken
      *
@@ -114,7 +120,9 @@ final class PersonalAccessTokenManager
 
         $token = $this->hydrate($rows[0]);
 
-        if ($token->isExpired()) {
+        // One-time tokens (password reset, e-mail verification) are redeemed via
+        // consume() only — they must never work as a Bearer token.
+        if ($token->isExpired() || str_starts_with($token->name, self::ONE_TIME_PREFIX)) {
             return null;
         }
 
@@ -170,6 +178,83 @@ final class PersonalAccessTokenManager
         $this->revoke($id);
 
         return $this->create($old->userId, $old->name, $old->abilities, $expiresIn);
+    }
+
+    /**
+     * Issue a purpose-bound one-time token (e-mail verification, password reset, …).
+     *
+     * Earlier one-time tokens of the same user and ability are revoked first, so only
+     * the latest link works. The token carries exactly `$ability` — never `*` — and
+     * can only be redeemed through consume().
+     *
+     * @param int|string $userId
+     * @param string     $ability Purpose, e.g. 'password-reset'.
+     * @param int        $ttl     Seconds until the token expires.
+     *
+     * @return string The raw token (store only in the link you send).
+     */
+    public function issueOneTime(int|string $userId, string $ability, int $ttl): string
+    {
+        $this->revokeFor($userId, $ability);
+
+        [$rawToken] = $this->create($userId, self::ONE_TIME_PREFIX . $ability, [$ability], $ttl);
+
+        return $rawToken;
+    }
+
+    /**
+     * Redeem a one-time token for `$ability`: it must exist, have been issued by
+     * issueOneTime() for that ability, and not be expired. It is deleted in the same
+     * step — the delete succeeding is what makes the redemption count, so of two
+     * concurrent calls only one gets the token. A token for another ability is left
+     * intact; an expired one is removed. `last_used_at` is not touched.
+     *
+     * @param string $rawToken
+     * @param string $ability
+     *
+     * @return PersonalAccessToken|null The redeemed token, or null.
+     */
+    public function consume(string $rawToken, string $ability): ?PersonalAccessToken
+    {
+        $hash = hash('sha256', $rawToken);
+
+        $rows = $this->db->query(
+            'SELECT * FROM ' . self::TABLE . ' WHERE token = :token AND name = :name LIMIT 1',
+            ['token' => $hash, 'name' => self::ONE_TIME_PREFIX . $ability],
+        );
+
+        if ($rows === []) {
+            return null;
+        }
+
+        $token = $this->hydrate($rows[0]);
+
+        $deleted = $this->db->execute(
+            'DELETE FROM ' . self::TABLE . ' WHERE token = :token',
+            ['token' => $hash],
+        );
+
+        if ($deleted !== 1 || $token->isExpired() || $token->abilities !== [$ability]) {
+            return null;
+        }
+
+        return $token;
+    }
+
+    /**
+     * Revoke all one-time tokens of `$userId` for `$ability` (regular tokens are untouched).
+     *
+     * @param int|string $userId
+     * @param string     $ability
+     *
+     * @return int Number of revoked tokens.
+     */
+    public function revokeFor(int|string $userId, string $ability): int
+    {
+        return $this->db->execute(
+            'DELETE FROM ' . self::TABLE . ' WHERE user_id = :user_id AND name = :name',
+            ['user_id' => $userId, 'name' => self::ONE_TIME_PREFIX . $ability],
+        );
     }
 
     /**

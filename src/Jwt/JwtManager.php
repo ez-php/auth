@@ -40,6 +40,16 @@ final class JwtManager
     }
 
     /**
+     * Token lifetime in seconds — e.g. for the `expires_in` field of a token response.
+     *
+     * @return int
+     */
+    public function ttl(): int
+    {
+        return $this->ttl;
+    }
+
+    /**
      * Issue a new signed JWT for the given subject.
      *
      * @param int|string $sub User identifier stored in the `sub` claim.

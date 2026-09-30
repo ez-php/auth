@@ -186,4 +186,21 @@ final class JwtManagerTest extends TestCase
         $this->expectException(JwtException::class);
         $this->jwt->validate($header . '.' . $payload . '.fakesig');
     }
+
+    public function test_ttl_returns_the_configured_lifetime(): void
+    {
+        $manager = new JwtManager(secret: 'secret', ttl: 1800);
+
+        self::assertSame(1800, $manager->ttl());
+    }
+
+    public function test_ttl_matches_the_exp_minus_iat_of_issued_tokens(): void
+    {
+        $manager = new JwtManager(secret: 'secret', ttl: 900);
+        $claims = $manager->validate($manager->issue(42));
+
+        self::assertIsInt($claims['exp']);
+        self::assertIsInt($claims['iat']);
+        self::assertSame($manager->ttl(), $claims['exp'] - $claims['iat']);
+    }
 }

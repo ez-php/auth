@@ -72,6 +72,7 @@ $jwt = $app->make(\EzPhp\Auth\Jwt\JwtManager::class);
 
 $token    = $jwt->issue($user->getAuthId());
 $claims   = $jwt->validate($token);
+$response = ['access_token' => $token, 'token_type' => 'Bearer', 'expires_in' => $jwt->ttl()];
 
 // Protect routes
 $router->get('/api/me', $handler)->middleware(\EzPhp\Auth\Middleware\JwtMiddleware::class);
@@ -138,6 +139,21 @@ $token = $manager->find($rawToken);
 $manager->revoke($token->id);
 ```
 
+One-time tokens for e-mail verification or password reset live in the same table but are
+bound to one purpose, work once, and never authenticate as a Bearer token:
+
+```php
+$raw = $manager->issueOneTime($userId, 'password-reset', ttl: 3600); // revokes earlier reset links
+// … send $raw in the reset link …
+
+$token = $manager->consume($rawFromLink, 'password-reset');          // null if invalid, expired, used or wrong purpose
+if ($token !== null) {
+    // reset the password of $token->userId
+}
+
+$manager->revokeFor($userId, 'password-reset');                      // e.g. after a successful reset
+```
+
 Register the bundled migration before migrating:
 
 ```
@@ -170,7 +186,7 @@ $app->registerCommand(\EzPhp\Auth\Console\TokenCommand::class);
 | `UserProviderInterface` | Contract for user lookup — `findById()`, `findByToken()` |
 | `AuthorizableInterface` | Optional contract for authorization checks on user objects |
 | `PersonalAccessToken` | Immutable value object — `isExpired()`, `can()` |
-| `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()` |
+| `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()`; one-time tokens — `issueOneTime()`, `consume()`, `revokeFor()` |
 | `AuthMiddleware` | Bearer token middleware (static list or provider mode) |
 | `JwtMiddleware` | JWT Bearer token middleware with optional blacklist and user resolution |
 | `JwtManager` | Issues and validates HMAC-HS256 JWTs |
