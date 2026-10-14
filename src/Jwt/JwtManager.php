@@ -17,7 +17,7 @@ namespace EzPhp\Auth\Jwt;
  *   - exp  — expiry Unix timestamp (iat + ttl)
  *
  * Usage:
- *   $manager = new JwtManager(secret: 'secret', ttl: 3600);
+ *   $manager = new JwtManager(secret: $secretOfAtLeast32Bytes, ttl: 3600);
  *   $token   = $manager->issue(userId: 42);
  *   $claims  = $manager->validate($token);  // throws JwtException on failure
  *
@@ -28,15 +28,32 @@ final class JwtManager
     private const HEADER = '{"alg":"HS256","typ":"JWT"}';
 
     /**
+     * Shortest accepted secret, in bytes. RFC 7518 §3.2 requires an HS256 key of at
+     * least 256 bits; an empty or short secret lets anyone forge tokens.
+     */
+    public const int MIN_SECRET_BYTES = 32;
+
+    /**
      * JwtManager Constructor
      *
-     * @param string $secret Signing secret — must be kept confidential.
-     * @param int    $ttl    Token lifetime in seconds (must be > 0).
+     * @param string                 $secret Signing secret, at least MIN_SECRET_BYTES bytes — must be kept confidential.
+     * @param int                    $ttl    Token lifetime in seconds (must be > 0).
+     * @param (\Closure(): int)|null $clock  Returns the current Unix time; defaults to `time()` (for tests).
+     *
+     * @throws \InvalidArgumentException When the secret is too short or the TTL is not positive.
      */
     public function __construct(
         private readonly string $secret,
         private readonly int $ttl,
+        private readonly ?\Closure $clock = null,
     ) {
+        if (strlen($secret) < self::MIN_SECRET_BYTES) {
+            throw new \InvalidArgumentException('The JWT signing secret must be at least ' . self::MIN_SECRET_BYTES . ' bytes long.');
+        }
+
+        if ($ttl <= 0) {
+            throw new \InvalidArgumentException("The JWT TTL must be a positive number of seconds, got {$ttl}.");
+        }
     }
 
     /**
@@ -58,7 +75,7 @@ final class JwtManager
      */
     public function issue(int|string $sub): string
     {
-        $now = time();
+        $now = $this->now();
 
         $payload = json_encode([
             'sub' => $sub,
@@ -190,9 +207,19 @@ final class JwtManager
             throw new JwtException('JWT exp claim must be an integer.');
         }
 
-        if (time() >= $exp) {
+        if ($this->now() >= $exp) {
             throw new JwtException('JWT has expired.');
         }
+    }
+
+    /**
+     * Current Unix time, from the injected clock when one was given.
+     *
+     * @return int
+     */
+    private function now(): int
+    {
+        return $this->clock !== null ? ($this->clock)() : time();
     }
 
     /**

@@ -24,6 +24,8 @@ use Tests\TestCase;
 #[CoversClass(JwtMiddleware::class)]
 final class JwtMiddlewareTest extends TestCase
 {
+    private const string SECRET = 'test-secret-of-at-least-32-bytes!';
+
     private JwtManager $jwt;
 
     /**
@@ -33,7 +35,7 @@ final class JwtMiddlewareTest extends TestCase
     {
         parent::setUp();
         Auth::resetInstance();
-        $this->jwt = new JwtManager(secret: 'test-secret', ttl: 3600);
+        $this->jwt = new JwtManager(secret: self::SECRET, ttl: 3600);
     }
 
     /**
@@ -201,7 +203,7 @@ final class JwtMiddlewareTest extends TestCase
      */
     public function test_expired_token_returns_401(): void
     {
-        $expiredJwt = new JwtManager(secret: 'test-secret', ttl: -1);
+        $expiredJwt = new JwtManager(secret: self::SECRET, ttl: 3600, clock: static fn (): int => time() - 7200);
         $token = $expiredJwt->issue(1);
         $middleware = new JwtMiddleware($this->jwt);
 
@@ -218,7 +220,7 @@ final class JwtMiddlewareTest extends TestCase
      */
     public function test_token_signed_with_wrong_secret_returns_401(): void
     {
-        $other = new JwtManager(secret: 'other-secret', ttl: 3600);
+        $other = new JwtManager(secret: str_repeat('o', 32), ttl: 3600);
         $token = $other->issue(1);
         $middleware = new JwtMiddleware($this->jwt);
 

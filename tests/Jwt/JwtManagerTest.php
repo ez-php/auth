@@ -18,6 +18,8 @@ use Tests\TestCase;
 #[CoversClass(JwtException::class)]
 final class JwtManagerTest extends TestCase
 {
+    private const string SECRET = 'test-secret-of-at-least-32-bytes!';
+
     private JwtManager $jwt;
 
     /**
@@ -26,7 +28,7 @@ final class JwtManagerTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        $this->jwt = new JwtManager(secret: 'test-secret', ttl: 3600);
+        $this->jwt = new JwtManager(secret: self::SECRET, ttl: 3600);
     }
 
     // ─── issue() ──────────────────────────────────────────────────────────────
@@ -89,8 +91,8 @@ final class JwtManagerTest extends TestCase
      */
     public function test_validate_accepts_tokens_from_different_instances_with_same_secret(): void
     {
-        $issuer = new JwtManager(secret: 'shared-secret', ttl: 3600);
-        $validator = new JwtManager(secret: 'shared-secret', ttl: 7200);
+        $issuer = new JwtManager(secret: self::SECRET, ttl: 3600);
+        $validator = new JwtManager(secret: self::SECRET, ttl: 7200);
 
         $token = $issuer->issue(5);
         $claims = $validator->validate($token);
@@ -146,7 +148,7 @@ final class JwtManagerTest extends TestCase
     {
         $token = $this->jwt->issue(1);
 
-        $other = new JwtManager(secret: 'wrong-secret', ttl: 3600);
+        $other = new JwtManager(secret: str_repeat('w', 32), ttl: 3600);
 
         $this->expectException(JwtException::class);
         $other->validate($token);
@@ -157,7 +159,7 @@ final class JwtManagerTest extends TestCase
      */
     public function test_validate_throws_on_expired_token(): void
     {
-        $expired = new JwtManager(secret: 'test-secret', ttl: -1);
+        $expired = new JwtManager(secret: self::SECRET, ttl: 3600, clock: static fn (): int => time() - 7200);
         $token = $expired->issue(1);
 
         $this->expectException(JwtException::class);
@@ -189,18 +191,46 @@ final class JwtManagerTest extends TestCase
 
     public function test_ttl_returns_the_configured_lifetime(): void
     {
-        $manager = new JwtManager(secret: 'secret', ttl: 1800);
+        $manager = new JwtManager(secret: self::SECRET, ttl: 1800);
 
         self::assertSame(1800, $manager->ttl());
     }
 
     public function test_ttl_matches_the_exp_minus_iat_of_issued_tokens(): void
     {
-        $manager = new JwtManager(secret: 'secret', ttl: 900);
+        $manager = new JwtManager(secret: self::SECRET, ttl: 900);
         $claims = $manager->validate($manager->issue(42));
 
         self::assertIsInt($claims['exp']);
         self::assertIsInt($claims['iat']);
         self::assertSame($manager->ttl(), $claims['exp'] - $claims['iat']);
+    }
+
+    public function test_constructor_rejects_an_empty_secret(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new JwtManager(secret: '', ttl: 3600);
+    }
+
+    public function test_constructor_rejects_a_secret_shorter_than_the_minimum(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new JwtManager(secret: str_repeat('s', JwtManager::MIN_SECRET_BYTES - 1), ttl: 3600);
+    }
+
+    public function test_constructor_accepts_a_secret_of_exactly_the_minimum_length(): void
+    {
+        $manager = new JwtManager(secret: str_repeat('s', JwtManager::MIN_SECRET_BYTES), ttl: 3600);
+
+        self::assertSame(42, $manager->validate($manager->issue(42))['sub']);
+    }
+
+    public function test_constructor_rejects_a_non_positive_ttl(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+
+        new JwtManager(secret: self::SECRET, ttl: 0);
     }
 }

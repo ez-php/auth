@@ -63,9 +63,13 @@ $router->get('/dashboard', $handler)->middleware(\EzPhp\Auth\Middleware\AuthMidd
 ### JWT authentication
 
 ```dotenv
-JWT_SECRET=your-secret-key
+JWT_SECRET=  # at least 32 bytes, e.g. php -r 'echo bin2hex(random_bytes(32));'
 JWT_TTL=3600
 ```
+
+`JWT_SECRET` is required: resolving `JwtManager` throws when it is unset or shorter than
+32 bytes (`JwtManager::MIN_SECRET_BYTES`, the HS256 minimum from RFC 7518), instead of
+signing with an empty key that would let anyone forge tokens.
 
 ```php
 $jwt = $app->make(\EzPhp\Auth\Jwt\JwtManager::class);

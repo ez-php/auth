@@ -26,6 +26,27 @@ use Tests\ApplicationTestCase;
 #[UsesClass(JwtBlacklist::class)]
 final class JwtServiceProviderTest extends ApplicationTestCase
 {
+    private string|false $previousSecret = false;
+
+    /**
+     * @return void
+     */
+    protected function setUp(): void
+    {
+        $this->previousSecret = getenv('JWT_SECRET');
+        putenv('JWT_SECRET=' . str_repeat('k', JwtManager::MIN_SECRET_BYTES));
+        parent::setUp();
+    }
+
+    /**
+     * @return void
+     */
+    protected function tearDown(): void
+    {
+        putenv($this->previousSecret === false ? 'JWT_SECRET' : 'JWT_SECRET=' . $this->previousSecret);
+        parent::tearDown();
+    }
+
     /**
      * @param Application $app
      *
@@ -83,5 +104,21 @@ final class JwtServiceProviderTest extends ApplicationTestCase
             $this->app()->make(JwtManager::class),
             $this->app()->make(JwtManager::class),
         );
+    }
+
+    /**
+     * An unset JWT_SECRET must not silently sign with an empty key — anyone could forge tokens.
+     *
+     * @return void
+     * @throws \ReflectionException
+     */
+    public function test_jwt_manager_refuses_to_resolve_without_a_secret(): void
+    {
+        putenv('JWT_SECRET');
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('JWT_SECRET');
+
+        $this->app()->make(JwtManager::class);
     }
 }
