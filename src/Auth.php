@@ -218,8 +218,11 @@ final class Auth
      * Log in the user and generate a remember-me token.
      *
      * The raw token is returned to the caller so the application can set it
-     * as a cookie. A SHA-256 hash of the token is stored in the session under
-     * 'auth_remember_token' for later verification without re-hashing.
+     * as a cookie and persist hash('sha256', $token) for
+     * UserProviderInterface::findByRememberToken(). A SHA-256 hash is also
+     * stored in the session under 'auth_remember_token' — that copy serves
+     * only verifyRememberToken(), a same-session check; it does not survive
+     * the session and cannot restore a login (use attemptRemember()).
      *
      * Requires an active PHP session.
      *

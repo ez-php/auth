@@ -46,6 +46,9 @@ interface UserProviderInterface
      * Find a user by a remember-me token.
      *
      * Used by Auth::attemptRemember() to restore a persistent session.
+     * $token is the RAW value from the cookie: persist only
+     * hash('sha256', $token) and look the user up by that hash, so a leaked
+     * table yields no usable tokens.
      *
      * @param string $token
      *

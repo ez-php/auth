@@ -29,14 +29,28 @@ $app->register(\EzPhp\Auth\JwtServiceProvider::class);
 Implement `UserProviderInterface` to connect your user storage:
 
 ```php
+use EzPhp\Auth\UserInterface;
 use EzPhp\Auth\UserProviderInterface;
 
 class UserProvider implements UserProviderInterface
 {
+    // Session restoration (the `auth_id` stored by Auth::login()).
     public function findById(int|string $id): ?UserInterface { ... }
+
+    // AuthMiddleware provider mode: the raw Bearer token from the request.
     public function findByToken(string $token): ?UserInterface { ... }
+
+    // Auth::attempt(): look the user up by login name / e-mail before password_verify().
+    public function findByCredentials(string $identifier): ?UserInterface { ... }
+
+    // Auth::attemptRemember(): receives the RAW token from the cookie — look it up by
+    // hash('sha256', $token), never store or compare the raw value (see "Remember me").
+    public function findByRememberToken(string $token): ?UserInterface { ... }
 }
 ```
+
+Your user class implements `UserInterface`: `getAuthId()` (the identifier stored in the
+session) and `getAuthPassword()` (the `password_hash()` hash `Auth::attempt()` verifies against).
 
 Bind it before `AuthServiceProvider`:
 
@@ -59,6 +73,37 @@ Auth::logout();
 // Protect routes with middleware
 $router->get('/dashboard', $handler)->middleware(\EzPhp\Auth\Middleware\AuthMiddleware::class);
 ```
+
+### Remember me
+
+`Auth::loginWithRemember($user)` logs the user in and returns a random raw token. The module
+does not persist it for you — the application stores it, and `findByRememberToken()` reads it back:
+
+```php
+$token = Auth::loginWithRemember($user);
+
+// Persist only the hash (e.g. a `remember_token` column on the users table) …
+$users->updateRememberToken($user->getAuthId(), hash('sha256', $token));
+
+// … and hand the raw token to the browser.
+$response = $response->withCookie('remember', $token, 60 * 60 * 24 * 30, secure: true, httpOnly: true, sameSite: 'Lax');
+
+// On a later request without a session:
+$raw = $request->cookie('remember');
+if (is_string($raw) && $raw !== '') {
+    Auth::attemptRemember($raw, $provider); // provider: WHERE remember_token = hash('sha256', $raw)
+}
+```
+
+Store and compare only `hash('sha256', $token)` — a leaked database then yields no usable
+cookie values. `findByRememberToken()` receives the raw cookie value precisely so the provider
+does the hashing at the lookup. Rotate the stored hash on every remember-login and clear it on
+logout.
+
+The hash `loginWithRemember()` also writes to `$_SESSION['auth_remember_token']` is a
+same-session check only: `Auth::verifyRememberToken($token)` confirms that a presented cookie
+was issued in *this* session (e.g. before a sensitive action). It cannot restore a login after
+the session has ended — that is what the persisted hash and `attemptRemember()` are for.
 
 ### JWT authentication
 
@@ -186,8 +231,8 @@ $app->registerCommand(\EzPhp\Auth\Console\TokenCommand::class);
 |---|---|
 | `Auth` | Static façade — `login()`, `logout()`, `user()`, `check()`, `id()`, `hashPassword()`, `verifyPassword()` |
 | `AuthServiceProvider` | Registers `Auth` singleton; optionally injects `UserProviderInterface` |
-| `UserInterface` | Contract for authenticated user objects — `getAuthId()` |
-| `UserProviderInterface` | Contract for user lookup — `findById()`, `findByToken()` |
+| `UserInterface` | Contract for authenticated user objects — `getAuthId()`, `getAuthPassword()` |
+| `UserProviderInterface` | Contract for user lookup — `findById()`, `findByToken()`, `findByCredentials()`, `findByRememberToken()` |
 | `AuthorizableInterface` | Optional contract for authorization checks on user objects |
 | `PersonalAccessToken` | Immutable value object — `isExpired()`, `can()` |
 | `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()`; one-time tokens — `issueOneTime()`, `consume()`, `revokeFor()` |

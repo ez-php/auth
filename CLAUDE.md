@@ -198,7 +198,7 @@ Run from the new module root (requires `"ez-php/docker": "^2.0"` in `require-dev
 vendor/bin/docker-init
 ```
 
-This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders. Existing files are never overwritten.
+This copies `Dockerfile`, `docker-compose.yml`, `.env.example`, `start.sh`, and `docker/` into the module, replacing `{{MODULE_NAME}}` placeholders (`docker/db/`, the MySQL init script, only with `--services=mysql`). Existing files are never overwritten.
 
 Pass `--services` to merge MySQL/Redis/Meilisearch/Memcached/Mailpit service definitions directly into `docker-compose.yml` and uncomment the matching sections in `.env.example`, instead of adapting them by hand afterward:
 
@@ -243,7 +243,8 @@ After scaffolding:
 | `ez-php/feature-flags` | — | 6385 (`REDIS_HOST_PORT`) | — |
 | `ez-php/scheduler` | — | 6386 (`REDIS_HOST_PORT`) | — |
 | `ez-php/session` | — | 6387 (`REDIS_HOST_PORT`) | — |
-| **next free** | **3312** | **6388** | **7702** |
+| `ez-php/metrics` | — | 6388 (`REDIS_HOST_PORT`) | — |
+| **next free** | **3312** | **6389** | **7702** |
 
 Only set a port for services the module actually uses. Modules without external services need no port config.
 
@@ -345,7 +346,8 @@ Static façade backed by a managed singleton instance. Provides the public API c
 Minimal contract. Any application user model must implement it.
 
 ```php
-public function getAuthId(): int|string;
+public function getAuthId(): int|string;   // identifier stored in the session
+public function getAuthPassword(): string; // password_hash() hash verified by Auth::attempt()
 ```
 
 ---
@@ -355,9 +357,13 @@ public function getAuthId(): int|string;
 Resolves users from a backing store (database, cache, in-memory, etc.).
 
 ```php
-public function findById(int|string $id): ?UserInterface;   // session restoration
-public function findByToken(string $token): ?UserInterface; // token authentication
+public function findById(int|string $id): ?UserInterface;              // session restoration
+public function findByToken(string $token): ?UserInterface;            // Bearer token authentication (AuthMiddleware provider mode)
+public function findByCredentials(string $identifier): ?UserInterface; // Auth::attempt() lookup before password_verify()
+public function findByRememberToken(string $token): ?UserInterface;    // Auth::attemptRemember(); receives the RAW cookie token
 ```
+
+`findByRememberToken()` is passed the raw token; the provider must store and look up only `hash('sha256', $token)` (README → "Remember me").
 
 Application code must implement and bind this interface in a service provider before `AuthServiceProvider` boots.
 
@@ -398,6 +404,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 
 - **Static façade with a managed singleton** — `Auth` uses a static instance so controllers can call `Auth::user()` without injecting the object. The singleton is set explicitly by `AuthServiceProvider`, not through `static::` magic, so it can be replaced in tests via `Auth::setInstance()`.
 - **`Auth` is intentionally exempt from the thin-delegation façade pattern used by `Cache`/`Mail`/`Flag`/`Metrics`/`Ai`/`RateLimiter`/`Storage`.** Those façades delegate every call to one injected interface instance. `Auth` cannot follow that shape because it supports **named guards** (`Auth::guard('api')`): each guard is an independent, stateful `Auth` instance holding its own `$currentUser`, so the state and the authentication logic (`attemptLogin()`, `loginUserWithRemember()`, `checkRememberToken()`, session mutation) have to live on the same class the guard registry holds — there is no single shared service to delegate to. Splitting the logic into a separate `AuthManager` would just move the same per-guard state one level down without removing it, at the cost of an extra indirection layer. The static-state trade-off this implies under concurrent runtimes is already covered above in the class's own "Async / concurrent runtime warning" docblock.
+- **Remember-me tokens are persisted by the application, hashed.** `loginWithRemember()` returns a random raw token and does not store it anywhere durable — the module has no user schema. The application stores `hash('sha256', $token)` and `findByRememberToken()` receives the raw cookie value, so the provider hashes at lookup and the database never holds a usable token. The copy of the hash in `$_SESSION['auth_remember_token']` serves only `verifyRememberToken()`, a same-session check ("was this cookie issued in this session?"); it cannot restore a login once the session is gone, which is `attemptRemember()`'s job. The signature was kept (raw token in, provider hashes) rather than switched to passing the hash, so existing providers keep working.
 - **No session management** — This module reads from and writes to an already-active PHP session (`session_status() === PHP_SESSION_ACTIVE`) but never calls `session_start()` or `session_destroy()`. Starting/destroying sessions is the application's responsibility (e.g. via a session middleware).
 - **Password hashing as thin wrappers** — `Auth::hashPassword()` and `Auth::verifyPassword()` are pure delegates to PHP's `password_hash()` / `password_verify()`. They live here so callers never import raw PHP functions in application code, but carry no state and no algorithm logic of their own.
 - **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
