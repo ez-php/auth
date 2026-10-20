@@ -446,6 +446,58 @@ final class AuthTest extends TestCase
     }
 
     /**
+     * The dummy hash an unknown user is checked against uses the same algorithm
+     * and cost as hashPassword(), so both failure paths cost the same.
+     *
+     * @return void
+     */
+    public function test_dummy_password_hash_matches_hash_password_algorithm_and_cost(): void
+    {
+        $dummy = password_get_info(Auth::dummyPasswordHash());
+        $real = password_get_info(Auth::hashPassword('secret'));
+
+        $this->assertSame($real['algo'], $dummy['algo']);
+        $this->assertSame($real['options'], $dummy['options']);
+        $this->assertSame(Auth::dummyPasswordHash(), Auth::dummyPasswordHash(), 'computed once per process');
+    }
+
+    /**
+     * An unknown identifier must not answer measurably faster than a wrong
+     * password (user enumeration via timing): both run one password_verify().
+     *
+     * @return void
+     */
+    public function test_attempt_for_unknown_user_costs_a_password_verification(): void
+    {
+        $provider = $this->makeProvider($this->makeUser(1, 'correct'));
+        Auth::dummyPasswordHash();
+
+        $unknown = $this->fastestOf(5, static fn () => Auth::attempt('unknown', 'wrong', $provider));
+        $wrong = $this->fastestOf(5, static fn () => Auth::attempt('1', 'wrong', $provider));
+
+        $this->assertGreaterThan($wrong * 0.3, $unknown);
+    }
+
+    /**
+     * @param int      $runs
+     * @param callable $fn
+     *
+     * @return int Fastest run in nanoseconds.
+     */
+    private function fastestOf(int $runs, callable $fn): int
+    {
+        $fastest = PHP_INT_MAX;
+
+        for ($i = 0; $i < $runs; $i++) {
+            $start = hrtime(true);
+            $fn();
+            $fastest = min($fastest, hrtime(true) - $start);
+        }
+
+        return $fastest;
+    }
+
+    /**
      * @return void
      */
     public function test_attempt_blocks_when_rate_limited(): void

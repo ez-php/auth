@@ -278,6 +278,8 @@ src/
 ├── UserInterface.php              — Contract for authenticated user objects (getAuthId)
 ├── UserProviderInterface.php      — Contract for user lookup by ID or Bearer token
 ├── AuthorizableInterface.php      — Optional contract for policy-style authorization: can(ability, subject): bool
+├── LoginThrottle.php              — Throttled credential check: caller-supplied limiter key, own lockout window, optional failure delay; returns LoginResult
+├── LoginResult.php                — success (user) / invalid (remaining attempts) / locked out (availableIn seconds)
 ├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
 ├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired; one-time tokens: issueOneTime, consume, revokeFor
 ├── Console/
@@ -289,6 +291,7 @@ src/
 │   └── JwtBlacklist.php          — Cache-backed blacklist for logout; keyed by SHA-256(token), TTL = remaining lifetime
 └── Middleware/
     ├── AuthMiddleware.php         — Validates Bearer tokens; supports static list or UserProviderInterface
+    ├── SessionAuthMiddleware.php  — Session guard: 401 unless Auth::check(); JSON envelope for JSON clients; optional response closure
     └── JwtMiddleware.php          — Validates JWT Bearer tokens; rejects blacklisted tokens; optionally resolves Auth user
 
 database/
@@ -297,9 +300,10 @@ database/
 
 tests/
 ├── TestCase.php                   — Base PHPUnit test case
-├── AuthTest.php                   — Covers Auth: login, logout, check, id, session restore, instance management
+├── AuthTest.php                   — Covers Auth: login, logout, check, id, session restore, instance management, unknown-user timing (dummy hash)
 ├── AuthServiceProviderTest.php    — Covers AuthServiceProvider registration with and without a UserProvider
 ├── PersonalAccessTokenTest.php    — Covers PersonalAccessToken: isExpired, can, abilities
+├── LoginThrottleTest.php          — Covers LoginThrottle/LoginResult on rate-limiter's ArrayDriver: success + reset, remaining attempts, lockout with availableIn, custom keys, clear(), unknown-identifier timing
 ├── Jwt/
 │   ├── JwtManagerTest.php        — Covers JwtManager: issue, validate, expiry, signature, tampered payload
 │   └── JwtBlacklistTest.php      — Covers JwtBlacklist: add, isBlacklisted, SHA-256 keying, custom prefix
@@ -308,7 +312,8 @@ tests/
 ├── Migration/
 │   └── AuthMigrationsMysqlTest.php — Runs every database/migrations/*.php up() and down() on MySQL; skipped without DB_HOST
 └── Middleware/
-    ├── AuthMiddlewareTest.php     — Covers AuthMiddleware: missing header, invalid token, static list, provider mode
+    ├── AuthMiddlewareTest.php     — Covers AuthMiddleware: missing header, invalid token, static list, provider mode, fail-closed when unconfigured (incl. container-resolved)
+    ├── SessionAuthMiddlewareTest.php — Covers SessionAuthMiddleware: logged-in pass-through, plain/JSON 401, custom response
     └── JwtMiddlewareTest.php      — Covers JwtMiddleware: missing header, invalid/expired/blacklisted token, user resolution
 ```
 
@@ -329,6 +334,7 @@ Static façade backed by a managed singleton instance. Provides the public API c
 | `Auth::logout()` | Clears the current user; when a session is active, removes `auth_id` and `auth_remember_token` from `$_SESSION` and regenerates the session ID (mirroring `login()`) |
 | `Auth::hashPassword($plain)` | Hashes a plain-text password via `password_hash()` with `PASSWORD_DEFAULT` (bcrypt) |
 | `Auth::verifyPassword($plain, $hash)` | Verifies a plain-text password against a stored hash via `password_verify()` |
+| `Auth::dummyPasswordHash()` | A throwaway hash with `hashPassword()`'s algorithm and cost, computed once per process; credential checks verify against it when the identifier matches no user |
 
 **Instance lifecycle:**
 - `Auth::setInstance(Auth)` — replaces the singleton (used by `AuthServiceProvider` and tests)
@@ -394,9 +400,18 @@ Two modes:
 Returns `401 Unauthorized` when:
 - `Authorization` header is missing or not a Bearer token
 - Provider mode: `findByToken()` returns `null`
-- Static mode: token is not in `$validTokens` (only when list is non-empty)
+- Static mode: token is not in `$validTokens`
+- Neither mode configured (`$validTokens` empty and `$userProvider` `null`): always
 
-If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token passes through (open/no-op mode — useful for development).
+The last case **fails closed**. It is what the container builds when the middleware is registered by class name (`->middleware(AuthMiddleware::class)`) and no `UserProviderInterface` is bound — both arguments fall back to their defaults. It used to be an "open mode" that let any Bearer token through; once the framework container started giving unbound optional interfaces their default instead of throwing (2.5.7), that turned a missing binding into an unauthenticated route.
+
+### SessionAuthMiddleware (`src/Middleware/SessionAuthMiddleware.php`)
+
+The session-cookie counterpart: passes when `Auth::check()` is true, otherwise answers 401 — plain text, or `{"error":{"code":401,"message":"Unauthenticated."}}` when `Accept` contains `application/json` (the same check and envelope as the framework's `CsrfMiddleware`). An optional `Closure(RequestInterface): ResponseInterface` replaces the rejection (an SPA's own JSON format, a redirect). No redirect-to-login logic of its own. Register it after the session is started.
+
+### LoginThrottle (`src/LoginThrottle.php`) and LoginResult (`src/LoginResult.php`)
+
+Throttled login with a reason: `attempt($identifier, $password, $provider, ?$throttleKey)` returns a `LoginResult` — `succeeded()` (user logged in via `Auth::login()`, counter reset), `INVALID` with `remainingAttempts`, or `isLockedOut()` with `availableIn` seconds for a 429 `Retry-After`. The limiter key is `login:` + the caller's key (e.g. `"alice|10.0.0.1"`, default the identifier); `$lockoutSeconds` (default 300) is the limiter window, independent of `Auth::attempt()`'s `$decaySeconds`; `$failureDelayMs` adds a constant delay after a failure. `Auth::attempt()` keeps its `bool` signature.
 
 ---
 
@@ -406,6 +421,7 @@ If both `$validTokens` is empty and `$userProvider` is `null`, any Bearer token 
 - **`Auth` is intentionally exempt from the thin-delegation façade pattern used by `Cache`/`Mail`/`Flag`/`Metrics`/`Ai`/`RateLimiter`/`Storage`.** Those façades delegate every call to one injected interface instance. `Auth` cannot follow that shape because it supports **named guards** (`Auth::guard('api')`): each guard is an independent, stateful `Auth` instance holding its own `$currentUser`, so the state and the authentication logic (`attemptLogin()`, `loginUserWithRemember()`, `checkRememberToken()`, session mutation) have to live on the same class the guard registry holds — there is no single shared service to delegate to. Splitting the logic into a separate `AuthManager` would just move the same per-guard state one level down without removing it, at the cost of an extra indirection layer. The static-state trade-off this implies under concurrent runtimes is already covered above in the class's own "Async / concurrent runtime warning" docblock.
 - **Remember-me tokens are persisted by the application, hashed.** `loginWithRemember()` returns a random raw token and does not store it anywhere durable — the module has no user schema. The application stores `hash('sha256', $token)` and `findByRememberToken()` receives the raw cookie value, so the provider hashes at lookup and the database never holds a usable token. The copy of the hash in `$_SESSION['auth_remember_token']` serves only `verifyRememberToken()`, a same-session check ("was this cookie issued in this session?"); it cannot restore a login once the session is gone, which is `attemptRemember()`'s job. The signature was kept (raw token in, provider hashes) rather than switched to passing the hash, so existing providers keep working.
 - **No session management** — This module reads from and writes to an already-active PHP session (`session_status() === PHP_SESSION_ACTIVE`) but never calls `session_start()` or `session_destroy()`. Starting/destroying sessions is the application's responsibility (e.g. via a session middleware).
+- **Unknown identifiers pay one `password_verify()` too** — `Auth::attempt()`, `LoginThrottle::attempt()` and the `auth:scaffold` login stub verify the submitted password against `Auth::dummyPasswordHash()` when `findByCredentials()` returns `null`. Returning early instead made an unknown identifier answer in microseconds and a wrong password in tens of milliseconds, so the response time revealed which accounts exist. The dummy hash is created lazily with `hashPassword()` so its algorithm and cost always match real hashes; the first miss in a process pays one extra `password_hash()`.
 - **Password hashing as thin wrappers** — `Auth::hashPassword()` and `Auth::verifyPassword()` are pure delegates to PHP's `password_hash()` / `password_verify()`. They live here so callers never import raw PHP functions in application code, but carry no state and no algorithm logic of their own.
 - **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
 - **`Auth::getInstance()` fails open (lazily creates a no-provider instance), unlike façades such as `Storage::getInstance()` or `Flag` (whose calls go through a `FlagManager` set by `Flag::setManager()`), which fail closed (throw if unconfigured).** This is intentional, not an inconsistency: a no-provider `Auth` is a fully valid, supported state — `AuthMiddleware`'s static-token-list mode and password hashing (`Auth::hashPassword()`/`verifyPassword()`) never need a `UserProviderInterface` or `AuthServiceProvider` at all. `Storage`/`Flag` have no equivalent "valid unconfigured" mode — every one of their operations requires a concrete driver, so silently creating an unconfigured instance would just defer a guaranteed failure to a more confusing call site. Do not change `Auth::getInstance()` to throw: that would break the static-token-list-only usage this module explicitly supports.
@@ -552,6 +568,7 @@ Not a complete user-management system — the generated controller's `findUserBy
 | Session lifecycle (start/destroy) | Application session middleware |
 | OAuth2 / SSO flows (authorization code, PKCE, token exchange) | `ez-php/oauth` |
 | User model / database schema | Application code implementing `UserInterface` |
-| Rate limiting login attempts | `ez-php/rate-limiter` — see README.md "Rate-limited login attempts" for the recipe (`'throttle:5,600,login'` wired ahead of `AuthMiddleware`) |
+| Rate-limiter drivers / request throttling | `ez-php/rate-limiter` — `LoginThrottle` only counts failed logins on an injected `RateLimiterInterface`; per-route throttling is `ThrottleMiddleware` (README "Rate-limited login attempts") |
+| CAPTCHA, lockout flags in the users table | Application layer |
 | HTTP Request / Response | `ez-php/http` |
 | Middleware infrastructure | `ez-php/framework` (`MiddlewareInterface`) |

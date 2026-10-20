@@ -56,6 +56,11 @@ final class Auth
     /** @var array<string, self> */
     private static array $guards = [];
 
+    /**
+     * Hash an unknown identifier's password is checked against (see dummyPasswordHash()).
+     */
+    private static ?string $dummyHash = null;
+
     private ?UserInterface $currentUser = null;
 
     /**
@@ -345,6 +350,21 @@ final class Auth
         return password_verify($plain, $hash);
     }
 
+    /**
+     * A throwaway hash with hashPassword()'s algorithm and cost, computed once per process.
+     *
+     * Credential checks verify the submitted password against it when the
+     * identifier matches no user, so an unknown identifier costs the same
+     * password_verify() as a wrong password — without it the response time
+     * tells an attacker which identifiers exist (user enumeration).
+     *
+     * @return string
+     */
+    public static function dummyPasswordHash(): string
+    {
+        return self::$dummyHash ??= self::hashPassword(bin2hex(random_bytes(16)));
+    }
+
     // ─── Instance methods (called on named guards) ────────────────────────────
 
     /**
@@ -449,16 +469,9 @@ final class Auth
         }
 
         $user = $provider->findByCredentials($identifier);
+        $verified = self::verifyPassword($plainPassword, $user?->getAuthPassword() ?? self::dummyPasswordHash());
 
-        if ($user === null) {
-            if ($limiter !== null) {
-                $limiter->attempt($identifier, $maxAttempts, $decaySeconds);
-            }
-
-            return false;
-        }
-
-        if (!self::verifyPassword($plainPassword, $user->getAuthPassword())) {
+        if ($user === null || !$verified) {
             if ($limiter !== null) {
                 $limiter->attempt($identifier, $maxAttempts, $decaySeconds);
             }

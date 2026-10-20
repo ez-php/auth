@@ -74,6 +74,12 @@ Auth::logout();
 $router->get('/dashboard', $handler)->middleware(\EzPhp\Auth\Middleware\AuthMiddleware::class);
 ```
 
+`AuthMiddleware` checks `Authorization: Bearer <token>` against the bound `UserProviderInterface`
+(`findByToken()`), or against a static token list when constructed as
+`new AuthMiddleware(['api-key-1', 'api-key-2'])`. With neither — e.g. registered by class name
+while no `UserProviderInterface` is bound — it rejects every request with 401 instead of
+letting any token through.
+
 ### Remember me
 
 `Auth::loginWithRemember($user)` logs the user in and returns a random raw token. The module
@@ -129,7 +135,7 @@ $router->get('/api/me', $handler)->middleware(\EzPhp\Auth\Middleware\JwtMiddlewa
 
 ### Rate-limited login attempts
 
-Login-attempt throttling is not part of this module (see "What Does NOT Belong Here") —
+For per-route throttling,
 compose `ez-php/rate-limiter`'s `ThrottleMiddleware` in front of your login route instead,
 passing the route's limit as middleware parameters (`maxAttempts,decaySeconds[,bucket]`):
 
@@ -147,6 +153,43 @@ $router->post('/login', $handler)
 
 `Auth`'s static-façade design is untouched by this — the throttle lives entirely in the
 middleware chain in front of it.
+
+To throttle *failed* logins per user (not per route) and tell the client why a login failed,
+use `LoginThrottle` inside the controller:
+
+```php
+use EzPhp\Auth\LoginThrottle;
+
+$throttle = new LoginThrottle($limiter, maxAttempts: 5, lockoutSeconds: 300, failureDelayMs: 250);
+$result = $throttle->attempt($username, $password, $provider, throttleKey: strtolower($username) . '|' . $ip);
+
+if ($result->isLockedOut()) {
+    return (new Response('Too many attempts', 429))->withHeader('Retry-After', (string) $result->availableIn);
+}
+
+if (!$result->succeeded()) {
+    return new Response('Invalid credentials', 401); // $result->remainingAttempts left
+}
+```
+
+A success logs the user in and resets the counter; the failed-attempt lockout is
+independent of `Auth::attempt()`, which keeps returning a plain `bool`.
+
+### Session guard for routes
+
+`SessionAuthMiddleware` lets a request through only when a user is logged in via the session
+(`Auth::check()`), otherwise it answers `401` — JSON (`{"error":{"code":401,...}}`) for clients
+sending `Accept: application/json`. Pass a closure to build the response yourself:
+
+```php
+use EzPhp\Auth\Middleware\SessionAuthMiddleware;
+
+$this->app->bind(SessionAuthMiddleware::class, fn () => new SessionAuthMiddleware(
+    static fn (RequestInterface $request) => (new Response('', 302))->withHeader('Location', '/login'),
+));
+
+$router->get('/dashboard', $handler)->middleware(SessionAuthMiddleware::class);
+```
 
 ### Example login/register scaffold
 
@@ -229,7 +272,7 @@ $app->registerCommand(\EzPhp\Auth\Console\TokenCommand::class);
 
 | Class | Description |
 |---|---|
-| `Auth` | Static façade — `login()`, `logout()`, `user()`, `check()`, `id()`, `hashPassword()`, `verifyPassword()` |
+| `Auth` | Static façade — `login()`, `logout()`, `user()`, `check()`, `id()`, `hashPassword()`, `verifyPassword()`, `dummyPasswordHash()` (verify an unknown user's password against it so the timing doesn't reveal which accounts exist) |
 | `AuthServiceProvider` | Registers `Auth` singleton; optionally injects `UserProviderInterface` |
 | `UserInterface` | Contract for authenticated user objects — `getAuthId()`, `getAuthPassword()` |
 | `UserProviderInterface` | Contract for user lookup — `findById()`, `findByToken()`, `findByCredentials()`, `findByRememberToken()` |
@@ -237,6 +280,8 @@ $app->registerCommand(\EzPhp\Auth\Console\TokenCommand::class);
 | `PersonalAccessToken` | Immutable value object — `isExpired()`, `can()` |
 | `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()`; one-time tokens — `issueOneTime()`, `consume()`, `revokeFor()` |
 | `AuthMiddleware` | Bearer token middleware (static list or provider mode) |
+| `SessionAuthMiddleware` | Session guard — 401 (plain or JSON) unless `Auth::check()`, optional response closure |
+| `LoginThrottle` / `LoginResult` | Throttled login returning success / invalid / locked out (`availableIn`) with a caller-supplied key |
 | `JwtMiddleware` | JWT Bearer token middleware with optional blacklist and user resolution |
 | `JwtManager` | Issues and validates HMAC-HS256 JWTs |
 | `JwtBlacklist` | Cache-backed token blacklist (SHA-256 keyed) |

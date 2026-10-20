@@ -148,6 +148,13 @@ final readonly class AuthScaffoldCommand implements CommandInterface
              */
             final class AuthController
             {
+                /**
+                 * Verify the credentials and start an authenticated session.
+                 *
+                 * @param Request $request
+                 *
+                 * @return Response 401 on invalid credentials
+                 */
                 public function login(Request $request): Response
                 {
                     $email = (string) ($request->input('email') ?? '');
@@ -158,7 +165,11 @@ final readonly class AuthScaffoldCommand implements CommandInterface
                     // return an object implementing EzPhp\Auth\UserInterface, or null.
                     $user = $this->findUserByEmail($email);
 
-                    if ($user === null || !Auth::verifyPassword($password, $user->passwordHash)) {
+                    // An unknown email still pays one password check against a dummy hash,
+                    // so the response time does not reveal which emails are registered.
+                    $verified = Auth::verifyPassword($password, $user?->passwordHash ?? Auth::dummyPasswordHash());
+
+                    if ($user === null || !$verified) {
                         return new Response('Invalid credentials', 401);
                     }
 
@@ -167,6 +178,13 @@ final readonly class AuthScaffoldCommand implements CommandInterface
                     return new Response('Logged in');
                 }
 
+                /**
+                 * Create a user, hash the password and log the user in.
+                 *
+                 * @param Request $request
+                 *
+                 * @return Response 201 on success
+                 */
                 public function register(Request $request): Response
                 {
                     $email = (string) ($request->input('email') ?? '');
@@ -183,6 +201,11 @@ final readonly class AuthScaffoldCommand implements CommandInterface
                     return new Response('Registered', 201);
                 }
 
+                /**
+                 * @param string $email
+                 *
+                 * @return object|null
+                 */
                 private function findUserByEmail(string $email): ?object
                 {
                     throw new \RuntimeException(
@@ -190,6 +213,12 @@ final readonly class AuthScaffoldCommand implements CommandInterface
                     );
                 }
 
+                /**
+                 * @param string $email
+                 * @param string $passwordHash
+                 *
+                 * @return object
+                 */
                 private function createUser(string $email, string $passwordHash): object
                 {
                     throw new \RuntimeException(
@@ -197,6 +226,13 @@ final readonly class AuthScaffoldCommand implements CommandInterface
                     );
                 }
 
+                /**
+                 * End the authenticated session.
+                 *
+                 * @param Request $request
+                 *
+                 * @return Response
+                 */
                 public function logout(Request $request): Response
                 {
                     Auth::logout();

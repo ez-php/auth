@@ -83,6 +83,27 @@ final class AuthScaffoldCommandTest extends TestCase
         $this->assertStringContainsString('EzPhp\\Auth\\Auth', $content);
         $this->assertStringContainsString('function login', $content);
         $this->assertStringContainsString('function register', $content);
+        $this->assertStringContainsString('Auth::dummyPasswordHash()', $content, 'login() checks unknown emails against a dummy hash');
+    }
+
+    public function test_controller_stub_documents_class_and_public_methods(): void
+    {
+        $command = new AuthScaffoldCommand($this->basePath);
+        ob_start();
+        $command->handle([]);
+        ob_end_clean();
+
+        $content = (string) file_get_contents($this->basePath . '/app/Controllers/AuthController.php');
+
+        $this->assertMatchesRegularExpression('#\*/\s*final class AuthController#', $content);
+
+        foreach (['login', 'register', 'logout'] as $method) {
+            $this->assertMatchesRegularExpression(
+                '#\*/\s*public function ' . $method . '\(#',
+                $content,
+                "public method $method() has no docblock",
+            );
+        }
     }
 
     public function test_routes_stub_references_auth_controller(): void

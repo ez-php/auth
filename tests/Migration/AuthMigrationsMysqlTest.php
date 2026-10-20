@@ -107,6 +107,37 @@ final class AuthMigrationsMysqlTest extends TestCase
     }
 
     /**
+     * revokeFor() filters on (user_id, name) and pruneExpired() on expires_at;
+     * both need an index, not a full-table scan.
+     */
+    public function testPersonalAccessTokensTableIndexesTheLookupColumns(): void
+    {
+        self::assertNotNull($this->schema);
+        self::assertNotNull($this->pdo);
+
+        /** @var MigrationInterface $migration */
+        $migration = require dirname(__DIR__, 2) . '/database/migrations/2024_01_01_000000_create_personal_access_tokens_table.php';
+        $migration->up($this->schema);
+
+        $stmt = $this->pdo->prepare(
+            'SELECT index_name, GROUP_CONCAT(column_name ORDER BY seq_in_index) AS cols
+             FROM information_schema.statistics
+             WHERE table_schema = ? AND table_name = ?
+             GROUP BY index_name'
+        );
+        $stmt->execute([$this->database, 'personal_access_tokens']);
+
+        /** @var list<string> $indexed */
+        $indexed = array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'cols');
+
+        self::assertContains('user_id,name', $indexed);
+        self::assertContains('expires_at', $indexed);
+        self::assertContains('token', $indexed);
+
+        $migration->down($this->schema);
+    }
+
+    /**
      * @return list<string>
      */
     private function tables(): array

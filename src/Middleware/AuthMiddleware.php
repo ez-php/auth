@@ -24,6 +24,11 @@ use EzPhp\Http\ResponseInterface;
  *      When the token resolves to a user, Auth::login($user) is called so that
  *      the user is available via Auth::user() for the rest of the request.
  *
+ * With neither (no tokens, no provider) every request is rejected with 401.
+ * That is also what the container produces when the middleware is registered
+ * by class name and no UserProviderInterface is bound — failing closed, so a
+ * missing binding can never turn the route into an open one.
+ *
  * @package EzPhp\Auth\Middleware
  */
 final readonly class AuthMiddleware implements MiddlewareInterface
@@ -64,7 +69,7 @@ final readonly class AuthMiddleware implements MiddlewareInterface
             }
 
             Auth::login($user);
-        } elseif ($this->validTokens !== [] && !$this->isValidStaticToken($token)) {
+        } elseif (!$this->isValidStaticToken($token)) {
             return new Response('Unauthorized', 401);
         }
 

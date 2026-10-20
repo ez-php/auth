@@ -8,6 +8,7 @@ use EzPhp\Auth\Auth;
 use EzPhp\Auth\Middleware\AuthMiddleware;
 use EzPhp\Auth\UserInterface;
 use EzPhp\Auth\UserProviderInterface;
+use EzPhp\Container\Container;
 use EzPhp\Http\Request;
 use EzPhp\Http\Response;
 use PHPUnit\Framework\Attributes\CoversClass;
@@ -142,16 +143,41 @@ final class AuthMiddlewareTest extends TestCase
     /**
      * @return void
      */
-    public function test_empty_valid_tokens_accepts_any_bearer_token(): void
+    public function test_no_token_list_and_no_provider_rejects_every_bearer_token(): void
     {
         $middleware = new AuthMiddleware([]);
+        $called = false;
 
         $response = $middleware->handle(
             new Request('GET', '/', headers: ['authorization' => 'Bearer any-token']),
+            function () use (&$called): Response {
+                $called = true;
+
+                return new Response('ok');
+            },
+        );
+
+        $this->assertSame(401, $response->status());
+        $this->assertFalse($called);
+    }
+
+    /**
+     * Route middleware is resolved from the container by class name. Without a
+     * UserProviderInterface binding both constructor arguments fall back to their
+     * defaults — that configuration must fail closed, not let any token through.
+     *
+     * @return void
+     */
+    public function test_container_resolved_middleware_without_provider_binding_fails_closed(): void
+    {
+        $middleware = (new Container())->make(AuthMiddleware::class);
+
+        $response = $middleware->handle(
+            new Request('GET', '/', headers: ['authorization' => 'Bearer forged']),
             fn (): Response => new Response('ok'),
         );
 
-        $this->assertSame(200, $response->status());
+        $this->assertSame(401, $response->status());
     }
 
     /**

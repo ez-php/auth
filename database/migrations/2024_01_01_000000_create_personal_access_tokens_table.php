@@ -31,6 +31,11 @@ return new class () implements MigrationInterface {
             $table->timestamp('last_used_at')->nullable();
             $table->timestamp('expires_at')->nullable();
             $table->timestamp('created_at');
+
+            // PersonalAccessTokenManager::revokeFor() deletes by (user_id, name),
+            // pruneExpired() filters on expires_at.
+            $table->index(['user_id', 'name']);
+            $table->index('expires_at');
         });
     }
 
