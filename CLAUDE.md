@@ -301,6 +301,8 @@ database/
 
 tests/
 ├── TestCase.php                   — Base PHPUnit test case
+├── PersonalAccessTokenManagerTest.php  — Covers PersonalAccessTokenManager
+├── JwtServiceProviderTest.php  — Smoke test: JwtServiceProvider registers and boots its bindings in a minimal application context without error
 ├── AuthTest.php                   — Covers Auth: login, logout, check, id, session restore, instance management, unknown-user timing (dummy hash)
 ├── AuthServiceProviderTest.php    — Covers AuthServiceProvider registration with and without a UserProvider
 ├── PersonalAccessTokenTest.php    — Covers PersonalAccessToken: isExpired, can, abilities
@@ -309,6 +311,7 @@ tests/
 │   ├── JwtManagerTest.php        — Covers JwtManager: issue, validate, expiry, signature, tampered payload
 │   └── JwtBlacklistTest.php      — Covers JwtBlacklist: add, isBlacklisted, SHA-256 keying, custom prefix
 ├── Console/
+│   ├── TokenCommandTest.php  — Covers TokenCommand
 │   └── AuthScaffoldCommandTest.php — Covers AuthScaffoldCommand: writes controller + routes, refuses to overwrite, stub content
 ├── Migration/
 │   └── AuthMigrationsMysqlTest.php — Runs every database/migrations/*.php up() and down() on MySQL; skipped without DB_HOST
