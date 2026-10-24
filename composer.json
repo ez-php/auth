@@ -18,21 +18,21 @@
   },
   "require": {
     "php": "^8.5",
-    "ez-php/contracts": "^2.0",
-    "ez-php/cache": "^2.0",
-    "ez-php/console": "^2.0",
-    "ez-php/http": "^2.0",
-    "ez-php/rate-limiter": "^2.0"
+    "ez-php/contracts": "^2.6.0",
+    "ez-php/cache": "^2.6.0",
+    "ez-php/console": "^2.6.0",
+    "ez-php/http": "^2.6.0",
+    "ez-php/rate-limiter": "^2.6.0"
   },
   "require-dev": {
-    "ez-php/docker": "^2.0",
+    "ez-php/docker": "^2.6.0",
     "phpunit/phpunit": "^13.0",
     "phpstan/phpstan": "^2.1",
     "friendsofphp/php-cs-fixer": "^3.94",
     "phpstan/phpstan-strict-rules": "^2.0",
     "phpstan/phpstan-deprecation-rules": "^2.0",
-    "ez-php/testing-application": "^2.0",
-    "ez-php/orm": "^2.0"
+    "ez-php/testing-application": "^2.6.0",
+    "ez-php/orm": "^2.6.0"
   },
   "suggest": {
     "ez-php/orm": "Needed to run database/migrations/*.php (they build tables with EzPhp\\Orm\\Schema\\Blueprint)"
