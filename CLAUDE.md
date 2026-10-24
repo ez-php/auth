@@ -301,6 +301,7 @@ database/
 
 tests/
 ├── TestCase.php                   — Base PHPUnit test case
+├── ApplicationTestCase.php        — base class for tests that need a bootstrapped Application
 ├── PersonalAccessTokenManagerTest.php  — Covers PersonalAccessTokenManager
 ├── JwtServiceProviderTest.php  — Smoke test: JwtServiceProvider registers and boots its bindings in a minimal application context without error
 ├── AuthTest.php                   — Covers Auth: login, logout, check, id, session restore, instance management, unknown-user timing (dummy hash)
