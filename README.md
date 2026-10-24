@@ -246,6 +246,13 @@ if ($token !== null) {
 $manager->revokeFor($userId, 'password-reset');                      // e.g. after a successful reset
 ```
 
+To revoke every regular token of a user with a given name — e.g. all rotating refresh
+tokens after a password reset — use `revokeNamed()`. It never touches one-time tokens:
+
+```php
+$revoked = $manager->revokeNamed($userId, 'refresh'); // number of deleted tokens
+```
+
 Register the bundled migration before migrating:
 
 ```
@@ -278,7 +285,7 @@ $app->registerCommand(\EzPhp\Auth\Console\TokenCommand::class);
 | `UserProviderInterface` | Contract for user lookup — `findById()`, `findByToken()`, `findByCredentials()`, `findByRememberToken()` |
 | `AuthorizableInterface` | Optional contract for authorization checks on user objects |
 | `PersonalAccessToken` | Immutable value object — `isExpired()`, `can()` |
-| `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()`; one-time tokens — `issueOneTime()`, `consume()`, `revokeFor()` |
+| `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()`; `revokeNamed()`; one-time tokens — `issueOneTime()`, `consume()`, `revokeFor()` |
 | `AuthMiddleware` | Bearer token middleware (static list or provider mode) |
 | `SessionAuthMiddleware` | Session guard — 401 (plain or JSON) unless `Auth::check()`, optional response closure |
 | `LoginThrottle` / `LoginResult` | Throttled login returning success / invalid / locked out (`availableIn`) with a caller-supplied key |

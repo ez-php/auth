@@ -272,6 +272,28 @@ final class PersonalAccessTokenManagerTest extends TestCase
         $this->assertNotNull($this->manager->find($api));
     }
 
+    public function test_revoke_named_removes_only_that_users_regular_tokens_of_that_name(): void
+    {
+        [$first] = $this->manager->create(7, 'refresh');
+        [$second] = $this->manager->create(7, 'refresh');
+        [$otherName] = $this->manager->create(7, 'API');
+        [$otherUser] = $this->manager->create(8, 'refresh');
+        $oneTime = $this->manager->issueOneTime(7, 'refresh', 3600);
+
+        $this->assertSame(2, $this->manager->revokeNamed(7, 'refresh'));
+
+        $this->assertNull($this->manager->find($first));
+        $this->assertNull($this->manager->find($second));
+        $this->assertNotNull($this->manager->find($otherName));
+        $this->assertNotNull($this->manager->find($otherUser));
+        $this->assertNotNull($this->manager->consume($oneTime, 'refresh'));
+    }
+
+    public function test_revoke_named_returns_zero_when_nothing_matches(): void
+    {
+        $this->assertSame(0, $this->manager->revokeNamed(7, 'refresh'));
+    }
+
     public function test_consume_does_not_touch_last_used_at(): void
     {
         $raw = $this->manager->issueOneTime(7, 'verify-email', 3600);

@@ -258,6 +258,24 @@ final class PersonalAccessTokenManager
     }
 
     /**
+     * Revoke all tokens of `$userId` named `$name` (e.g. every rotating refresh token
+     * after a password reset). One-time tokens carry the ONE_TIME_PREFIX in their name,
+     * so a plain name never matches them — use revokeFor() for those.
+     *
+     * @param int|string $userId
+     * @param string     $name
+     *
+     * @return int Number of revoked tokens.
+     */
+    public function revokeNamed(int|string $userId, string $name): int
+    {
+        return $this->db->execute(
+            'DELETE FROM ' . self::TABLE . ' WHERE user_id = :user_id AND name = :name',
+            ['user_id' => $userId, 'name' => $name],
+        );
+    }
+
+    /**
      * Delete all expired tokens from the table.
      *
      * @return int Number of deleted rows.

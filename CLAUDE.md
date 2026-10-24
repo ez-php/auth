@@ -232,7 +232,7 @@ After scaffolding:
 |---|---|---|---|
 | root (`ez-php-project`) | 3306 | 6379 (`REDIS_PORT`) | 7700 |
 | `ez-php/framework` | 3307 | — | — |
-| `ez-php/` (application template) | 3308 | 6383 (`REDIS_PORT`) | — |
+| `ez-php/` (application template) | 3308 | 6383 (`REDIS_PORT`) | 7702 (opt-in service) |
 | `ez-php/orm` | 3309 | — | — |
 | `ez-php/cache` | — | 6380 (`REDIS_HOST_PORT`) | — |
 | `ez-php/queue` | 3310 | 6381 (`REDIS_HOST_PORT`) | — |
@@ -245,7 +245,7 @@ After scaffolding:
 | `ez-php/session` | — | 6387 (`REDIS_HOST_PORT`) | — |
 | `ez-php/metrics` | — | 6388 (`REDIS_HOST_PORT`) | — |
 | `ez-php/event-store-snapshots` | 3312 | — | — |
-| **next free** | **3313** | **6389** | **7702** |
+| **next free** | **3313** | **6389** | **7703** |
 
 Only set a port for services the module actually uses. Modules without external services need no port config.
 
@@ -282,7 +282,7 @@ src/
 ├── LoginThrottle.php              — Throttled credential check: caller-supplied limiter key, own lockout window, optional failure delay; returns LoginResult
 ├── LoginResult.php                — success (user) / invalid (remaining attempts) / locked out (availableIn seconds)
 ├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
-├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, rotate, pruneExpired; one-time tokens: issueOneTime, consume, revokeFor
+├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, revokeNamed, rotate, pruneExpired; one-time tokens: issueOneTime, consume, revokeFor
 ├── Console/
 │   ├── TokenCommand.php          — auth:token command: generates a token for a user, prints raw token once
 │   └── AuthScaffoldCommand.php   — auth:scaffold command: writes an example login/register/logout controller + routes file into the application
@@ -528,6 +528,7 @@ Manages token storage using `DatabaseInterface`. Works with the `personal_access
 | `create(userId, name, abilities, expiresIn?)` | Generates raw token + hash, inserts row, returns `[rawToken, PersonalAccessToken]` |
 | `find(rawToken)` | Hashes the raw token, looks up the row, touches `last_used_at`, returns null if missing, expired, or a one-time token |
 | `revoke(id)` | Deletes the token row by ID |
+| `revokeNamed(userId, name)` | Deletes that user's tokens named `name`, returns the count; one-time tokens (`one-time:` prefix) never match a plain name |
 | `rotate(id)` | Revokes the old token and creates a new one with identical name/abilities/remaining TTL |
 | `pruneExpired()` | Deletes all rows where `expires_at < now`; returns the row count |
 | `issueOneTime(userId, ability, ttl)` | Revokes the user's earlier one-time tokens for `ability`, creates one named `one-time:<ability>` with exactly `[ability]`, returns the raw token |
