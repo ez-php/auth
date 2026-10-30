@@ -276,6 +276,22 @@ final class PersonalAccessTokenManager
     }
 
     /**
+     * Revoke every token of `$userId` — regular and one-time, any name — e.g. on
+     * account deletion, so callers never reach into the token table themselves.
+     *
+     * @param int|string $userId
+     *
+     * @return int Number of revoked tokens.
+     */
+    public function revokeAllFor(int|string $userId): int
+    {
+        return $this->db->execute(
+            'DELETE FROM ' . self::TABLE . ' WHERE user_id = :user_id',
+            ['user_id' => $userId],
+        );
+    }
+
+    /**
      * Delete all expired tokens from the table.
      *
      * @return int Number of deleted rows.
@@ -329,6 +345,12 @@ final class PersonalAccessTokenManager
 
         $id = isset($row['id']) && (is_int($row['id']) || is_string($row['id'])) ? $row['id'] : 0;
         $userId = isset($row['user_id']) && (is_int($row['user_id']) || is_string($row['user_id'])) ? $row['user_id'] : 0;
+
+        // PDO hands MySQL integers back as strings; a canonical digit string is an
+        // integer id (string ids such as UUIDs stay untouched).
+        if (is_string($userId) && preg_match('/^(0|[1-9]\d{0,17})$/', $userId) === 1) {
+            $userId = (int) $userId;
+        }
         $name = isset($row['name']) && is_string($row['name']) ? $row['name'] : '';
         $tokenHash = isset($row['token']) && is_string($row['token']) ? $row['token'] : '';
 

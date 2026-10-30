@@ -6,7 +6,6 @@ namespace EzPhp\Auth;
 
 use EzPhp\Contracts\ContainerInterface;
 use EzPhp\Contracts\ServiceProvider;
-use Throwable;
 
 /**
  * Class AuthServiceProvider
@@ -28,16 +27,12 @@ final class AuthServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->bind(Auth::class, function (ContainerInterface $app): Auth {
-            $provider = null;
-
-            try {
-                $provider = $app->make(UserProviderInterface::class);
-            } catch (Throwable) {
-                // UserProviderInterface not bound — token/session auth
-                // without automatic user restoration is still available.
-            }
-
-            return new Auth($provider);
+            // Not bound: token/session auth without automatic user restoration is
+            // still available. Bound but failing (e.g. its DB connection): the error
+            // surfaces instead of silently building a provider-less Auth.
+            return new Auth(
+                $app->has(UserProviderInterface::class) ? $app->make(UserProviderInterface::class) : null,
+            );
         });
     }
 

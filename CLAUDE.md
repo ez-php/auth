@@ -151,7 +151,7 @@ php make_module.php <name> --description="..." --services=mysql,redis --extensio
 
 `<name>` is the kebab-case package name; the namespace is derived as
 `EzPhp\<PascalCase>` (each `-`-separated word upper-cased) unless `--namespace=`
-overrides it. Existing exceptions the guess gets wrong: `asyncapi` → `AsyncApi`,
+overrides it. Existing exceptions the guess gets wrong: `asyncapi` → `AsyncApi`, `asyncapi-ui` → `AsyncApiUi`,
 `bignum` → `BigNum`, `dataloader` → `DataLoader`, `dotenv` → `Env`, `graphql` → `GraphQL`, `graphql-subscriptions` → `GraphQLSubscriptions`, `oauth` → `OAuth`,
 `opcache` → `OPCache`, `openapi` → `OpenApi`, `qrcode` → `QrCode`, `swagger-ui` → `SwaggerUI`, `webauthn` → `WebAuthn` and
 `websocket` → `WebSocket`; `websocket-client` → `WebsocketClient`, `websocket-tls` → `WebsocketTls`,
@@ -275,14 +275,14 @@ Session and Bearer-token authentication for ez-php applications.
 src/
 ├── Auth.php                       — Static façade and singleton; login/logout/check/user/id
 ├── AuthServiceProvider.php        — Registers Auth in the container; injects UserProviderInterface if bound
-├── JwtServiceProvider.php         — Registers JwtManager and JwtBlacklist; reads JWT_SECRET (required, ≥ 32 bytes) + JWT_TTL from env
+├── JwtServiceProvider.php         — Registers JwtManager and JwtBlacklist; reads auth.jwt.secret (required, ≥ 32 bytes) + auth.jwt.ttl, falling back to JWT_SECRET / JWT_TTL
 ├── UserInterface.php              — Contract for authenticated user objects (getAuthId)
 ├── UserProviderInterface.php      — Contract for user lookup by ID or Bearer token
 ├── AuthorizableInterface.php      — Optional contract for policy-style authorization: can(ability, subject): bool
 ├── LoginThrottle.php              — Throttled credential check: caller-supplied limiter key, own lockout window, optional failure delay; returns LoginResult
 ├── LoginResult.php                — success (user) / invalid (remaining attempts) / locked out (availableIn seconds)
 ├── PersonalAccessToken.php        — Immutable value object: id, userId, name, tokenHash, abilities, expiry
-├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, revokeNamed, rotate, pruneExpired; one-time tokens: issueOneTime, consume, revokeFor
+├── PersonalAccessTokenManager.php — Token CRUD via DatabaseInterface: create, find, revoke, revokeNamed, revokeAllFor, rotate, pruneExpired; one-time tokens: issueOneTime, consume, revokeFor
 ├── Console/
 │   ├── TokenCommand.php          — auth:token command: generates a token for a user, prints raw token once
 │   └── AuthScaffoldCommand.php   — auth:scaffold command: writes an example login/register/logout controller + routes file into the application
@@ -303,9 +303,9 @@ tests/
 ├── TestCase.php                   — Base PHPUnit test case
 ├── ApplicationTestCase.php        — base class for tests that need a bootstrapped Application
 ├── PersonalAccessTokenManagerTest.php  — Covers PersonalAccessTokenManager
-├── JwtServiceProviderTest.php  — Smoke test: JwtServiceProvider registers and boots its bindings in a minimal application context without error
+├── JwtServiceProviderTest.php  — Smoke test: JwtServiceProvider registers and boots its bindings in a minimal application context without error; auth.jwt.* config wins over JWT_* env
 ├── AuthTest.php                   — Covers Auth: login, logout, check, id, session restore, instance management, unknown-user timing (dummy hash)
-├── AuthServiceProviderTest.php    — Covers AuthServiceProvider registration with and without a UserProvider
+├── AuthServiceProviderTest.php    — Covers AuthServiceProvider registration with and without a UserProvider, and a bound-but-failing provider surfacing from boot()
 ├── PersonalAccessTokenTest.php    — Covers PersonalAccessToken: isExpired, can, abilities
 ├── LoginThrottleTest.php          — Covers LoginThrottle/LoginResult on rate-limiter's ArrayDriver: success + reset, remaining attempts, lockout with availableIn, custom keys, clear(), unknown-identifier timing
 ├── Jwt/
@@ -428,13 +428,11 @@ Throttled login with a reason: `attempt($identifier, $password, $provider, ?$thr
 - **No session management** — This module reads from and writes to an already-active PHP session (`session_status() === PHP_SESSION_ACTIVE`) but never calls `session_start()` or `session_destroy()`. Starting/destroying sessions is the application's responsibility (e.g. via a session middleware).
 - **Unknown identifiers pay one `password_verify()` too** — `Auth::attempt()`, `LoginThrottle::attempt()` and the `auth:scaffold` login stub verify the submitted password against `Auth::dummyPasswordHash()` when `findByCredentials()` returns `null`. Returning early instead made an unknown identifier answer in microseconds and a wrong password in tens of milliseconds, so the response time revealed which accounts exist. The dummy hash is created lazily with `hashPassword()` so its algorithm and cost always match real hashes; the first miss in a process pays one extra `password_hash()`.
 - **Password hashing as thin wrappers** — `Auth::hashPassword()` and `Auth::verifyPassword()` are pure delegates to PHP's `password_hash()` / `password_verify()`. They live here so callers never import raw PHP functions in application code, but carry no state and no algorithm logic of their own.
-- **`UserProviderInterface` is optional** — `AuthServiceProvider` catches the `ContainerException` when the interface is not bound. This keeps the module functional for pure token-list scenarios without requiring a full user provider setup.
+- **`UserProviderInterface` is optional** — `AuthServiceProvider` checks `has(UserProviderInterface::class)` and builds a provider-less `Auth` when it is not bound, keeping the module functional for pure token-list scenarios. A bound provider that fails to construct (e.g. its database connection) is not swallowed: resolving `Auth` throws, instead of silently answering 401 on every guarded route.
 - **`Auth::getInstance()` fails open (lazily creates a no-provider instance), unlike façades such as `Storage::getInstance()` or `Flag` (whose calls go through a `FlagManager` set by `Flag::setManager()`), which fail closed (throw if unconfigured).** This is intentional, not an inconsistency: a no-provider `Auth` is a fully valid, supported state — `AuthMiddleware`'s static-token-list mode and password hashing (`Auth::hashPassword()`/`verifyPassword()`) never need a `UserProviderInterface` or `AuthServiceProvider` at all. `Storage`/`Flag` have no equivalent "valid unconfigured" mode — every one of their operations requires a concrete driver, so silently creating an unconfigured instance would just defer a guaranteed failure to a more confusing call site. Do not change `Auth::getInstance()` to throw: that would break the static-token-list-only usage this module explicitly supports.
 - **`AuthMiddleware` is `final`** — Extend behaviour by composing a new middleware that wraps or replaces it, not by subclassing.
 - **JWT is HMAC-HS256 only** — No RS256 or other asymmetric algorithms. The signing key (`JWT_SECRET`) must never be exposed to clients. Changing the secret invalidates all active tokens immediately.
 - **A missing or short JWT secret fails closed** — `JwtManager` rejects secrets under 32 bytes rather than signing with `''` (which anyone can reproduce), matching `ez-php/storage`'s `SignedUrl::MIN_SECRET_BYTES` and `ez-php/webhook`'s refusal to verify against an empty key.
-
----
 - **`ez-php/cache` and `ez-php/rate-limiter` are hard `require`s even though their use is optional at runtime.** `JwtBlacklist` needs a `CacheInterface`, and `Auth`'s login-throttling argument is typed `?RateLimiterInterface` (`Auth.php`) and may be `null`. The packages stay in `require` so the type declarations always resolve and `JwtServiceProvider` works out of the box; an application that never uses JWT blacklisting or throttling simply never binds them. Moving them to `suggest` would require a `class_exists` guard around every use and a lock-file refresh, and was judged not worth it.
 - **Static instance is wired in `boot()`** — `AuthServiceProvider::boot()` calls `Auth::setInstance($app->make(Auth::class))`; the binding closure itself has no side effect. `Auth::getInstance()` still lazily creates a provider-less `Auth` when no provider is registered (standalone/test use) — in an application this fallback is never reached because `boot()` runs first.
 
@@ -461,7 +459,7 @@ Issues and validates stateless HMAC-HS256 JSON Web Tokens.
 
 **Token format:** `base64url(header).base64url(payload).base64url(HMAC-SHA256-signature)`
 
-**Config:** Constructed with `string $secret`, `int $ttl` (seconds) and an optional `\Closure(): int $clock` (tests). The constructor throws `InvalidArgumentException` for a secret shorter than `MIN_SECRET_BYTES` (32 — RFC 7518's HS256 minimum; an empty key lets anyone forge tokens) or a `ttl <= 0`. `JwtServiceProvider` reads `JWT_SECRET` and `JWT_TTL` from the env and throws with an env-specific message when the secret is missing or short.
+**Config:** Constructed with `string $secret`, `int $ttl` (seconds) and an optional `\Closure(): int $clock` (tests). The constructor throws `InvalidArgumentException` for a secret shorter than `MIN_SECRET_BYTES` (32 — RFC 7518's HS256 minimum; an empty key lets anyone forge tokens) or a `ttl <= 0`. `JwtServiceProvider` reads `auth.jwt.secret` / `auth.jwt.ttl` through `ConfigInterface` (template `config/auth.php`), falling back to `JWT_SECRET` / `JWT_TTL` from `getenv()` when a key is unset or empty, and throws a message naming both when the secret is missing or short.
 
 ---
 
@@ -501,7 +499,7 @@ Constructor: `(JwtManager $jwt, ?JwtBlacklist $blacklist = null, ?UserProviderIn
 
 Registers JWT services in the container.
 
-- `JwtManager` — bound lazily, reads `JWT_SECRET` and `JWT_TTL` from `getenv()`; resolving it throws when `JWT_SECRET` is unset or shorter than 32 bytes.
+- `JwtManager` — bound lazily, reads `auth.jwt.secret`/`auth.jwt.ttl` (env fallback `JWT_SECRET`/`JWT_TTL`); resolving it throws when the secret is unset or shorter than 32 bytes.
 - `JwtBlacklist` — bound lazily, tries to resolve `CacheInterface`; falls back to `ArrayDriver`.
 
 Register after `CacheServiceProvider` to get a fully functional blacklist.
@@ -529,6 +527,9 @@ Manages token storage using `DatabaseInterface`. Works with the `personal_access
 | `find(rawToken)` | Hashes the raw token, looks up the row, touches `last_used_at`, returns null if missing, expired, or a one-time token |
 | `revoke(id)` | Deletes the token row by ID |
 | `revokeNamed(userId, name)` | Deletes that user's tokens named `name`, returns the count; one-time tokens (`one-time:` prefix) never match a plain name |
+| `revokeAllFor(userId)` | Deletes every token of that user (regular and one-time), returns the count — for account deletion |
+
+`hydrate()` returns `user_id` as an `int` when the column value is a canonical digit string (PDO returns MySQL integers as strings), so `find()`/`consume()`/`rotate()` hand back the id type `create()` was given; other strings (UUIDs, `007`) stay strings.
 | `rotate(id)` | Revokes the old token and creates a new one with identical name/abilities/remaining TTL |
 | `pruneExpired()` | Deletes all rows where `expires_at < now`; returns the row count |
 | `issueOneTime(userId, ability, ttl)` | Revokes the user's earlier one-time tokens for `ability`, creates one named `one-time:<ability>` with exactly `[ability]`, returns the raw token |

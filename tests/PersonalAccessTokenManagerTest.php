@@ -98,9 +98,9 @@ final class PersonalAccessTokenManagerTest extends TestCase
 
         $this->assertNotNull($found);
         $this->assertSame($created->id, $found->id);
-        // user_id is a VARCHAR column, so it round-trips as a string even
-        // though 42 (an int) was passed in at creation time.
-        $this->assertSame('42', $found->userId);
+        // user_id is a VARCHAR column (PDO returns a string, as MySQL does for
+        // integer columns); a digit-only id is handed back as an int.
+        $this->assertSame(42, $found->userId);
     }
 
     public function test_find_returns_null_for_unknown_token(): void
@@ -154,10 +154,8 @@ final class PersonalAccessTokenManagerTest extends TestCase
 
         $this->assertNotSame($oldRaw, $newRaw);
         $this->assertNotSame($old->id, $new->id);
-        // $old->userId is 7 (int, as passed to create()); $new->userId comes
-        // from rotate() re-reading the row via hydrate(), where the VARCHAR
-        // column round-trips it as a string.
-        $this->assertSame((string) $old->userId, (string) $new->userId);
+        // $new->userId is re-read from the row by hydrate(), which restores the int.
+        $this->assertSame($old->userId, $new->userId);
         $this->assertSame($old->name, $new->name);
         $this->assertSame($old->abilities, $new->abilities);
 
@@ -309,5 +307,26 @@ final class PersonalAccessTokenManagerTest extends TestCase
 
         $this->assertNull($this->manager->find($raw));
         $this->assertNotNull($this->manager->consume($raw, 'password-reset'), 'find() did not burn it');
+    }
+
+    public function test_string_user_ids_are_not_converted(): void
+    {
+        [$uuidRaw] = $this->manager->create(userId: '0b9f3c1e-7d1a-4c3e-9b5a-2f6d8e4a1c00', name: 'Uuid');
+        [$paddedRaw] = $this->manager->create(userId: '007', name: 'Padded');
+
+        $this->assertSame('0b9f3c1e-7d1a-4c3e-9b5a-2f6d8e4a1c00', $this->manager->find($uuidRaw)?->userId);
+        $this->assertSame('007', $this->manager->find($paddedRaw)?->userId);
+    }
+
+    public function test_revoke_all_for_deletes_every_token_of_the_user_only(): void
+    {
+        $this->manager->create(userId: 3, name: 'api');
+        $this->manager->create(userId: 3, name: 'refresh');
+        $this->manager->issueOneTime(3, 'reset-password', 600);
+        [$otherRaw] = $this->manager->create(userId: 4, name: 'api');
+
+        $this->assertSame(3, $this->manager->revokeAllFor(3));
+        $this->assertSame(0, $this->manager->revokeAllFor(3));
+        $this->assertNotNull($this->manager->find($otherRaw));
     }
 }

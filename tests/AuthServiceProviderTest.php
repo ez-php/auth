@@ -183,4 +183,48 @@ final class AuthServiceProviderTest extends ApplicationTestCase
         Auth::login($user);
         $this->assertSame($user, Auth::user());
     }
+
+    /**
+     * A bound provider that fails to construct must not be taken for "not bound":
+     * a provider-less Auth would answer every guarded route with 401 and log nothing.
+     *
+     * @return void
+     */
+    public function test_a_bound_but_failing_user_provider_surfaces_its_error(): void
+    {
+        $basePath = sys_get_temp_dir() . '/ez-php-auth-provider-' . uniqid('', true);
+        mkdir($basePath . '/config', 0o777, true);
+
+        try {
+            $app = new Application($basePath);
+            $app->register(AuthServiceProviderFailingUserProvider::class);
+            $app->register(AuthServiceProvider::class);
+
+            $this->expectException(\RuntimeException::class);
+            $this->expectExceptionMessage('users database unreachable');
+
+            // boot() resolves Auth for the façade, which resolves the provider.
+            $app->bootstrap();
+        } finally {
+            @rmdir($basePath . '/config');
+            @rmdir($basePath);
+        }
+    }
+}
+
+/**
+ * Binds a UserProviderInterface whose construction fails, like one whose
+ * database connection is down.
+ */
+final class AuthServiceProviderFailingUserProvider extends \EzPhp\Contracts\ServiceProvider
+{
+    /**
+     * @return void
+     */
+    public function register(): void
+    {
+        $this->app->bind(UserProviderInterface::class, static function (): UserProviderInterface {
+            throw new \RuntimeException('users database unreachable');
+        });
+    }
 }

@@ -10,6 +10,7 @@ use EzPhp\Auth\Jwt\JwtManager;
 use EzPhp\Auth\JwtServiceProvider;
 use EzPhp\Cache\ArrayDriver;
 use EzPhp\Cache\CacheInterface;
+use EzPhp\Contracts\ConfigInterface;
 use EzPhp\Exceptions\ContainerException;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\Attributes\UsesClass;
@@ -120,5 +121,32 @@ final class JwtServiceProviderTest extends ApplicationTestCase
         $this->expectExceptionMessage('JWT_SECRET');
 
         $this->app()->make(JwtManager::class);
+    }
+
+    /**
+     * config/auth.php wins over the environment, so tests and multi-app setups
+     * can configure JWT through ConfigInterface.
+     *
+     * @return void
+     * @throws \ReflectionException
+     */
+    public function test_auth_jwt_config_takes_precedence_over_the_environment(): void
+    {
+        putenv('JWT_SECRET=too-short');
+        $this->app()->instance(ConfigInterface::class, new readonly class () implements ConfigInterface {
+            public function get(string $key, mixed $default = null): mixed
+            {
+                return match ($key) {
+                    'auth.jwt.secret' => str_repeat('c', JwtManager::MIN_SECRET_BYTES),
+                    'auth.jwt.ttl' => 60,
+                    default => $default,
+                };
+            }
+        });
+
+        $manager = $this->app()->make(JwtManager::class);
+
+        $this->assertSame(60, $manager->ttl());
+        $this->assertSame(42, $manager->validate($manager->issue(42))['sub'] ?? null);
     }
 }

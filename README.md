@@ -118,7 +118,9 @@ JWT_SECRET=  # at least 32 bytes, e.g. php -r 'echo bin2hex(random_bytes(32));'
 JWT_TTL=3600
 ```
 
-`JWT_SECRET` is required: resolving `JwtManager` throws when it is unset or shorter than
+`JwtServiceProvider` reads `auth.jwt.secret` / `auth.jwt.ttl` (the template's `config/auth.php`,
+backed by these variables) and falls back to the variables themselves when a key is unset.
+The secret is required: resolving `JwtManager` throws when it is unset or shorter than
 32 bytes (`JwtManager::MIN_SECRET_BYTES`, the HS256 minimum from RFC 7518), instead of
 signing with an empty key that would let anyone forge tokens.
 
@@ -253,6 +255,10 @@ tokens after a password reset — use `revokeNamed()`. It never touches one-time
 $revoked = $manager->revokeNamed($userId, 'refresh'); // number of deleted tokens
 ```
 
+When an account is deleted, `revokeAllFor($userId)` removes all of its tokens — regular and
+one-time. Token records hand `userId` back as an `int` when the stored id is a plain number
+(PDO returns MySQL integers as strings); string ids such as UUIDs are left as they are.
+
 Register the bundled migration before migrating:
 
 ```
@@ -285,7 +291,7 @@ $app->registerCommand(\EzPhp\Auth\Console\TokenCommand::class);
 | `UserProviderInterface` | Contract for user lookup — `findById()`, `findByToken()`, `findByCredentials()`, `findByRememberToken()` |
 | `AuthorizableInterface` | Optional contract for authorization checks on user objects |
 | `PersonalAccessToken` | Immutable value object — `isExpired()`, `can()` |
-| `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()`; `revokeNamed()`; one-time tokens — `issueOneTime()`, `consume()`, `revokeFor()` |
+| `PersonalAccessTokenManager` | Token CRUD — `create()`, `find()`, `revoke()`, `rotate()`, `pruneExpired()`; `revokeNamed()`, `revokeAllFor()`; one-time tokens — `issueOneTime()`, `consume()`, `revokeFor()` |
 | `AuthMiddleware` | Bearer token middleware (static list or provider mode) |
 | `SessionAuthMiddleware` | Session guard — 401 (plain or JSON) unless `Auth::check()`, optional response closure |
 | `LoginThrottle` / `LoginResult` | Throttled login returning success / invalid / locked out (`availableIn`) with a caller-supplied key |
